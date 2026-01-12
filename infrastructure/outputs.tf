@@ -3,14 +3,14 @@ output "website_bucket_name" {
   value       = aws_s3_bucket.website.bucket
 }
 
-output "temp_cloudfront_distribution_id" {
-  description = "Temporary CloudFront distribution ID for the website"
-  value       = aws_cloudfront_distribution.website_distribution_temp.id
+output "cloudfront_distribution_id" {
+  description = " CloudFront distribution ID for the website"
+  value       = aws_cloudfront_distribution.website_distribution.id
 }
 
-output "temp_cloudfront_domain_name" {
-  description = "Temporary CloudFront distribution domain name"
-  value       = aws_cloudfront_distribution.website_distribution_temp.domain_name
+output "cloudfront_domain_name" {
+  description = "CloudFront distribution domain name"
+  value       = aws_cloudfront_distribution.website_distribution.domain_name
 }
 
 output "route53_zone_id" {
