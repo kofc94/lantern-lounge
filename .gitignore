@@ -9,6 +9,8 @@ infrastructure/terraform.tfvars
 *.tfplan
 *.tfplan.*
 
+infrastructure/*/.terraform
+
 # OS generated files
 .DS_Store
 .DS_Store?
@@ -56,3 +58,6 @@ yarn-error.log*
 *.backup
 *.bak
 *_original.*
+
+.claude
+

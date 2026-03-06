@@ -8,7 +8,7 @@ set -e
 # Configuration
 BUCKET_NAME="www.lanternlounge.org"
 CLOUDFRONT_DISTRIBUTION_ID=""  # Will be populated after terraform apply
-WEBAPP_DIR="../webapp"
+WEBAPP_DIR="../app/webapp"
 
 # Colors for output
 RED='\033[0;31m'

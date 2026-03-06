@@ -8,7 +8,7 @@ set -e
 # Configuration
 BUCKET_NAME=${1:-"www.lanternlounge.org"}
 CLOUDFRONT_DISTRIBUTION_ID=${2:-""}
-WEBAPP_DIR="../webapp"
+WEBAPP_DIR="../app/webapp"
 
 # Colors for output
 RED='\033[0;31m'
