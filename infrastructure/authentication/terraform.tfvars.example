@@ -5,12 +5,11 @@
 google_client_id     = "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
 google_client_secret = "YOUR_GOOGLE_CLIENT_SECRET"
 
-# Cognito Resource IDs (get from ../aws/terraform output)
-cognito_user_pool_id  = "us-east-1_XXXXXXXXX"
-cognito_app_client_id = "xxxxxxxxxxxxxxxxxxxxx"
-cognito_domain        = "lantern-lounge-calendar-production"
+# Project configuration (must match ../aws module)
+project_name = "lantern-lounge"
+environment  = "production"
 
-# AWS Region
+# AWS Region (must match ../aws module)
 aws_region = "us-east-1"
 
 # Application domains for OAuth callbacks

@@ -64,25 +64,7 @@ For production use, you'll need to publish your OAuth consent screen:
 3. Add authorized domains: `lanternlounge.org`
 4. Click **Submit for Verification** (optional, but recommended for production)
 
-## Step 2: Get Existing Cognito Resource IDs
-
-You need to reference the existing Cognito resources. Run these commands from the AWS infrastructure directory:
-
-```bash
-cd /Users/eric/dev/lantern-lounge/infrastructure/aws
-
-# Get User Pool ID
-terraform output -raw cognito_user_pool_id
-
-# Get App Client ID
-terraform output -raw cognito_app_client_id
-
-# Get Cognito Domain
-terraform output cognito_hosted_ui_url
-# Extract the domain prefix (e.g., "lantern-lounge-calendar-production")
-```
-
-## Step 3: Create terraform.tfvars File
+## Step 2: Create terraform.tfvars File
 
 Create a `terraform.tfvars` file in this directory with your Google OAuth credentials:
 
@@ -97,12 +79,11 @@ Create `terraform.tfvars`:
 google_client_id     = "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
 google_client_secret = "YOUR_GOOGLE_CLIENT_SECRET"
 
-# Cognito Resource IDs from Step 2
-cognito_user_pool_id  = "us-east-1_XXXXXXXXX"
-cognito_app_client_id = "xxxxxxxxxxxxxxxxxxxxx"
-cognito_domain        = "lantern-lounge-calendar-production"
+# Project configuration (must match ../aws module)
+project_name = "lantern-lounge"
+environment  = "production"
 
-# AWS Region
+# AWS Region (must match ../aws module)
 aws_region = "us-east-1"
 
 # Application domains for OAuth callbacks
@@ -113,13 +94,15 @@ app_domains = [
 ]
 ```
 
+**Note**: The Cognito User Pool and App Client are automatically discovered using data sources based on the `project_name` and `environment` variables. These must match the values used in the `../aws` module.
+
 **SECURITY**: Add `terraform.tfvars` to `.gitignore` to prevent committing secrets!
 
 ```bash
 echo "terraform.tfvars" >> .gitignore
 ```
 
-## Step 4: Import Existing App Client (Required)
+## Step 3: Import Existing App Client (Required)
 
 Before applying, you need to import the existing Cognito App Client into Terraform state:
 
@@ -129,14 +112,19 @@ cd /Users/eric/dev/lantern-lounge/infrastructure/authentication
 # Initialize Terraform
 terraform init
 
+# Get the User Pool ID and App Client ID from the aws module
+cd ../aws
+USER_POOL_ID=$(terraform output -raw cognito_user_pool_id)
+APP_CLIENT_ID=$(terraform output -raw cognito_app_client_id)
+cd ../authentication
+
 # Import the existing app client
-# Format: terraform import aws_cognito_user_pool_client.app <user_pool_id>/<app_client_id>
-terraform import aws_cognito_user_pool_client.app us-east-1_XXXXXXXXX/xxxxxxxxxxxxxxxxxxxxx
+terraform import aws_cognito_user_pool_client.app ${USER_POOL_ID}/${APP_CLIENT_ID}
 ```
 
-Replace the IDs with your actual User Pool ID and App Client ID from Step 2.
+This imports the existing App Client so Terraform can manage it without recreating it.
 
-## Step 5: Apply Terraform Configuration
+## Step 4: Apply Terraform Configuration
 
 ```bash
 # Review the changes
@@ -152,7 +140,7 @@ This will:
 3. ✅ Configure OAuth callback URLs for your React app
 4. ✅ Map Google user attributes (email, name) to Cognito attributes
 
-## Step 6: Update Google OAuth Redirect URIs
+## Step 5: Update Google OAuth Redirect URIs
 
 After Terraform applies successfully, verify your Cognito domain in the output:
 
@@ -169,7 +157,7 @@ Then update Google Cloud Console:
    ```
 4. Click **Save**
 
-## Step 7: Test Google Sign-In
+## Step 6: Test Google Sign-In
 
 1. Start your React dev server:
    ```bash

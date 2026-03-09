@@ -8,9 +8,14 @@ terraform {
   }
 }
 
+# Data source to look up existing Cognito User Pool by name
+data "aws_cognito_user_pools" "existing" {
+  name = "${var.project_name}-calendar-users"
+}
+
 # Google Identity Provider for Cognito
 resource "aws_cognito_identity_provider" "google" {
-  user_pool_id  = var.cognito_user_pool_id
+  user_pool_id  = tolist(data.aws_cognito_user_pools.existing.ids)[0]
   provider_name = "Google"
   provider_type = "Google"
 
@@ -31,13 +36,13 @@ resource "aws_cognito_identity_provider" "google" {
 # Note: This requires importing the existing app client first
 # Run: terraform import aws_cognito_user_pool_client.app <user_pool_id>/<app_client_id>
 resource "aws_cognito_user_pool_client" "app" {
-  name         = "lantern-lounge-calendar-app"
-  user_pool_id = var.cognito_user_pool_id
+  name         = "${var.project_name}-calendar-app"
+  user_pool_id = tolist(data.aws_cognito_user_pools.existing.ids)[0]
 
   # Token validity periods
-  id_token_validity      = 60  # 60 minutes
-  access_token_validity  = 60  # 60 minutes
-  refresh_token_validity = 30  # 30 days
+  id_token_validity      = 60 # 60 minutes
+  access_token_validity  = 60 # 60 minutes
+  refresh_token_validity = 30 # 30 days
 
   token_validity_units {
     id_token      = "minutes"

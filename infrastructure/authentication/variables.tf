@@ -10,19 +10,16 @@ variable "google_client_secret" {
   sensitive   = true
 }
 
-variable "cognito_user_pool_id" {
-  description = "ID of the existing Cognito User Pool"
+variable "project_name" {
+  description = "Name of the project (must match aws module)"
   type        = string
+  default     = "lantern-lounge"
 }
 
-variable "cognito_app_client_id" {
-  description = "ID of the existing Cognito App Client"
+variable "environment" {
+  description = "Environment name (must match aws module)"
   type        = string
-}
-
-variable "cognito_domain" {
-  description = "Cognito domain prefix for hosted UI"
-  type        = string
+  default     = "production"
 }
 
 variable "aws_region" {
@@ -34,7 +31,7 @@ variable "aws_region" {
 variable "app_domains" {
   description = "List of application domains for OAuth callbacks"
   type        = list(string)
-  default     = [
+  default = [
     "http://localhost:5174",
     "https://www.lanternlounge.org",
     "https://lanternlounge.org"
