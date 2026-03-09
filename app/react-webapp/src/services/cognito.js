@@ -193,6 +193,27 @@ export const getAuthToken = () => {
   });
 };
 
+/**
+ * Initiate social sign-in with federated identity provider
+ * @param {string} provider - 'Google', 'Facebook', 'Apple', etc.
+ */
+export const federatedSignIn = (provider) => {
+  // Build the Cognito Hosted UI URL for social sign-in
+  const cognitoDomain = CONFIG.cognito.domain;
+  const clientId = CONFIG.cognito.appClientId;
+  const redirectUri = encodeURIComponent(window.location.origin);
+
+  const hostedUIUrl = `https://${cognitoDomain}/oauth2/authorize?` +
+    `identity_provider=${provider}&` +
+    `redirect_uri=${redirectUri}&` +
+    `response_type=CODE&` +
+    `client_id=${clientId}&` +
+    `scope=openid email profile`;
+
+  // Redirect to Cognito Hosted UI for social sign-in
+  window.location.href = hostedUIUrl;
+};
+
 export default {
   signIn,
   signUp,
@@ -200,5 +221,6 @@ export default {
   resendConfirmationCode,
   signOut,
   getCurrentUser,
-  getAuthToken
+  getAuthToken,
+  federatedSignIn
 };
