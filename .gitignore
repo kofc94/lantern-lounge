@@ -9,6 +9,8 @@ infrastructure/terraform.tfvars
 *.tfplan
 *.tfplan.*
 
+infrastructure/*/.terraform
+
 # OS generated files
 .DS_Store
 .DS_Store?
@@ -33,7 +35,6 @@ Thumbs.db
 
 # Claude Code
 .claude/
-CLAUDE.md
 
 # Node modules (if any)
 node_modules/
@@ -56,3 +57,6 @@ yarn-error.log*
 *.backup
 *.bak
 *_original.*
+
+.claude
+

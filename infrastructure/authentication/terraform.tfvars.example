@@ -1,0 +1,20 @@
+# Copy this file to terraform.tfvars and fill in your actual values
+# DO NOT commit terraform.tfvars to git!
+
+# Google OAuth Credentials from Google Cloud Console
+google_client_id     = "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
+google_client_secret = "YOUR_GOOGLE_CLIENT_SECRET"
+
+# Project configuration (must match ../aws module)
+project_name = "lantern-lounge"
+environment  = "production"
+
+# AWS Region (must match ../aws module)
+aws_region = "us-east-1"
+
+# Application domains for OAuth callbacks
+app_domains = [
+  "http://localhost:5174",              # Local development (React dev server)
+  "https://www.lanternlounge.org",      # Production
+  "https://lanternlounge.org"           # Production (root domain)
+]

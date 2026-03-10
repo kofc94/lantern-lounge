@@ -1,0 +1,45 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@400;600;700;800;900&family=Roboto+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    background-color: #1a1a1a;
+    color: #ffffff;
+    font-family: 'Inter', sans-serif;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+}
+
+@layer components {
+  .btn-cta {
+    @apply bg-primary hover:bg-primary-hover text-white px-10 py-4 rounded-full font-semibold uppercase tracking-wide shadow-lg hover:shadow-xl transition-all hover:-translate-y-1;
+  }
+
+  .card-base {
+    @apply bg-dark-card p-8 rounded-lg shadow-lg transition-all;
+  }
+
+  .card-hover {
+    @apply hover:transform hover:-translate-y-2;
+  }
+
+  .container-custom {
+    @apply max-w-7xl mx-auto px-4;
+  }
+}
