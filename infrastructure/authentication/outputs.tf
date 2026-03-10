@@ -8,27 +8,12 @@ output "cognito_user_pool_id" {
   value       = tolist(data.aws_cognito_user_pools.existing.ids)[0]
 }
 
-output "cognito_app_client_id" {
-  description = "Cognito App Client ID"
-  value       = aws_cognito_user_pool_client.app.id
+output "google_project_id" {
+  description = "Google Cloud project ID"
+  value       = google_project.lantern_lounge.project_id
 }
 
-output "cognito_domain" {
-  description = "Cognito domain for hosted UI"
-  value       = "${var.project_name}-calendar-${var.environment}"
-}
-
-output "cognito_hosted_ui_url" {
-  description = "Cognito Hosted UI URL for Google sign-in"
-  value       = "https://${var.project_name}-calendar-${var.environment}.auth.${var.aws_region}.amazoncognito.com/oauth2/authorize?identity_provider=Google&redirect_uri=${var.app_domains[0]}&response_type=CODE&client_id=${aws_cognito_user_pool_client.app.id}&scope=openid+email+profile"
-}
-
-output "callback_urls" {
-  description = "Configured OAuth callback URLs"
-  value       = aws_cognito_user_pool_client.app.callback_urls
-}
-
-output "supported_identity_providers" {
-  description = "List of enabled identity providers"
-  value       = aws_cognito_user_pool_client.app.supported_identity_providers
+output "google_project_number" {
+  description = "Google Cloud project number"
+  value       = google_project.lantern_lounge.number
 }

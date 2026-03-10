@@ -66,11 +66,16 @@ resource "aws_cognito_user_pool" "calendar_users" {
     attributes_require_verification_before_update = ["email"]
   }
 
+  lambda_config {
+    post_confirmation = aws_lambda_function.post_confirmation.arn
+  }
+
   tags = {
     Name        = "Lantern Lounge Calendar Users"
     Environment = var.environment
     Project     = var.project_name
   }
+
 }
 
 # App Client for JavaScript frontend (no client secret)
@@ -79,9 +84,9 @@ resource "aws_cognito_user_pool_client" "calendar_app" {
   user_pool_id = aws_cognito_user_pool.calendar_users.id
 
   # Token validity periods
-  id_token_validity      = 60  # 60 minutes
-  access_token_validity  = 60  # 60 minutes
-  refresh_token_validity = 30  # 30 days
+  id_token_validity      = 60 # 60 minutes
+  access_token_validity  = 60 # 60 minutes
+  refresh_token_validity = 30 # 30 days
 
   token_validity_units {
     id_token      = "minutes"
@@ -97,22 +102,22 @@ resource "aws_cognito_user_pool_client" "calendar_app" {
   allowed_oauth_flows                  = ["implicit", "code"]
   allowed_oauth_scopes                 = ["email", "openid", "profile"]
 
-  # Callback URLs (update with your actual domain after testing)
+  # Callback URLs
   callback_urls = [
-    "https://${local.www_domain_name}/calendar.html",
-    "https://${local.domain_name}/calendar.html",
-    "http://localhost:8080/calendar.html" # For local testing
+    "https://${local.www_domain_name}/",
+    "https://${local.domain_name}/",
+    "http://localhost:5174/"
   ]
 
   # Logout URLs
   logout_urls = [
-    "https://${local.www_domain_name}",
-    "https://${local.domain_name}",
-    "http://localhost:8080"
+    "https://${local.www_domain_name}/",
+    "https://${local.domain_name}/",
+    "http://localhost:5174/"
   ]
 
   # Supported identity providers
-  supported_identity_providers = ["COGNITO"]
+  supported_identity_providers = ["COGNITO", "Google"]
 
   # Enable token revocation
   enable_token_revocation = true
@@ -146,7 +151,41 @@ resource "aws_cognito_user_pool_domain" "calendar_domain" {
   user_pool_id = aws_cognito_user_pool.calendar_users.id
 }
 
-# Output the hosted UI URL
+# ── Groups ────────────────────────────────────────────────────────────────────
+
+resource "aws_cognito_user_group" "member" {
+  name         = "member"
+  user_pool_id = aws_cognito_user_pool.calendar_users.id
+  description  = "Standard club members — granted automatically on first sign-in"
+  precedence   = 10
+}
+
+resource "aws_cognito_user_group" "admin" {
+  name         = "admin"
+  user_pool_id = aws_cognito_user_pool.calendar_users.id
+  description  = "Administrators with elevated privileges"
+  precedence   = 1
+}
+
+# ── Admin assignments ──────────────────────────────────────────────────────────
+# Add Cognito usernames here to grant admin access.
+# For Google OAuth users, the username is the Google sub ID.
+# Look it up after first login:
+#   aws cognito-idp list-users --user-pool-id <pool-id> --filter "email = \"user@example.com\""
+locals {
+  admin_users = [
+    # "109876543210987654321",  # example: Jane Doe (jane@example.com)
+  ]
+}
+
+resource "aws_cognito_user_in_group" "admin" {
+  for_each     = toset(local.admin_users)
+  user_pool_id = aws_cognito_user_pool.calendar_users.id
+  group_name   = aws_cognito_user_group.admin.name
+  username     = each.value
+}
+
+# ── Output the hosted UI URL ───────────────────────────────────────────────────
 output "cognito_hosted_ui_url" {
   description = "Cognito Hosted UI URL for sign-in"
   value       = "https://${aws_cognito_user_pool_domain.calendar_domain.domain}.auth.${var.aws_region}.amazoncognito.com/login?client_id=${aws_cognito_user_pool_client.calendar_app.id}&response_type=code&redirect_uri=https://${local.www_domain_name}/calendar.html"

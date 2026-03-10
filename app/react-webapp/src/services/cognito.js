@@ -1,217 +1,117 @@
-import { CognitoUserPool, CognitoUser, AuthenticationDetails, CognitoUserAttribute } from 'amazon-cognito-identity-js';
+import { Amplify } from 'aws-amplify';
+import {
+  signIn as amplifySignIn,
+  signUp as amplifySignUp,
+  confirmSignUp,
+  resendSignUpCode,
+  signOut as amplifySignOut,
+  getCurrentUser as amplifyGetCurrentUser,
+  fetchAuthSession,
+  fetchUserAttributes,
+  signInWithRedirect,
+} from '@aws-amplify/auth';
 import CONFIG from '../config/aws-config';
 
-// Initialize Cognito User Pool
-const poolData = {
-  UserPoolId: CONFIG.cognito.userPoolId,
-  ClientId: CONFIG.cognito.appClientId
-};
-
-const userPool = new CognitoUserPool(poolData);
+Amplify.configure({
+  Auth: {
+    Cognito: {
+      userPoolId: CONFIG.cognito.userPoolId,
+      userPoolClientId: CONFIG.cognito.appClientId,
+      loginWith: {
+        oauth: {
+          domain: CONFIG.cognito.domain,
+          scopes: ['openid', 'email', 'profile'],
+          redirectSignIn: [`${window.location.origin}/`],
+          redirectSignOut: [`${window.location.origin}/`],
+          responseType: 'code',
+        },
+      },
+    },
+  },
+});
 
 /**
  * Sign in with email and password
- * @param {string} email - User email
- * @param {string} password - User password
- * @returns {Promise<Object>} - Session result
  */
-export const signIn = (email, password) => {
-  return new Promise((resolve, reject) => {
-    const authenticationData = {
-      Username: email,
-      Password: password
-    };
-
-    const authenticationDetails = new AuthenticationDetails(authenticationData);
-
-    const userData = {
-      Username: email,
-      Pool: userPool
-    };
-
-    const cognitoUser = new CognitoUser(userData);
-
-    cognitoUser.authenticateUser(authenticationDetails, {
-      onSuccess: (result) => {
-        resolve(result);
-      },
-      onFailure: (err) => {
-        reject(err);
-      }
-    });
-  });
+export const signIn = async (email, password) => {
+  await amplifySignIn({ username: email, password });
 };
 
 /**
  * Sign up a new user
- * @param {string} name - User's full name
- * @param {string} email - User email
- * @param {string} password - User password
- * @returns {Promise<Object>} - Signup result
  */
-export const signUp = (name, email, password) => {
-  return new Promise((resolve, reject) => {
-    const attributeList = [
-      new CognitoUserAttribute({
-        Name: 'email',
-        Value: email
-      }),
-      new CognitoUserAttribute({
-        Name: 'name',
-        Value: name
-      })
-    ];
-
-    userPool.signUp(email, password, attributeList, null, (err, result) => {
-      if (err) {
-        reject(err);
-        return;
-      }
-      resolve(result);
-    });
+export const signUp = async (name, email, password) => {
+  await amplifySignUp({
+    username: email,
+    password,
+    options: {
+      userAttributes: { email, name },
+    },
   });
 };
 
 /**
  * Confirm user registration with verification code
- * @param {string} email - User email
- * @param {string} code - Verification code
- * @returns {Promise<string>} - Confirmation result
  */
-export const confirmRegistration = (email, code) => {
-  return new Promise((resolve, reject) => {
-    const userData = {
-      Username: email,
-      Pool: userPool
-    };
-
-    const cognitoUser = new CognitoUser(userData);
-
-    cognitoUser.confirmRegistration(code, true, (err, result) => {
-      if (err) {
-        reject(err);
-        return;
-      }
-      resolve(result);
-    });
-  });
+export const confirmRegistration = async (email, code) => {
+  await confirmSignUp({ username: email, confirmationCode: code });
 };
 
 /**
- * Resend confirmation code to user email
- * @param {string} email - User email
- * @returns {Promise<string>} - Resend result
+ * Resend confirmation code
  */
-export const resendConfirmationCode = (email) => {
-  return new Promise((resolve, reject) => {
-    const userData = {
-      Username: email,
-      Pool: userPool
-    };
-
-    const cognitoUser = new CognitoUser(userData);
-
-    cognitoUser.resendConfirmationCode((err, result) => {
-      if (err) {
-        reject(err);
-        return;
-      }
-      resolve(result);
-    });
-  });
+export const resendConfirmationCode = async (email) => {
+  await resendSignUpCode({ username: email });
 };
 
 /**
  * Sign out current user
  */
-export const signOut = () => {
-  const cognitoUser = userPool.getCurrentUser();
-  if (cognitoUser) {
-    cognitoUser.signOut();
+export const signOut = async () => {
+  await amplifySignOut();
+};
+
+/**
+ * Get current authenticated user with attributes and group membership.
+ * Returns null if no session exists.
+ */
+export const getCurrentUser = async () => {
+  try {
+    await amplifyGetCurrentUser();
+    const [attributes, session] = await Promise.all([
+      fetchUserAttributes(),
+      fetchAuthSession(),
+    ]);
+    const groups = session.tokens?.idToken?.payload['cognito:groups'] ?? [];
+    return {
+      email: attributes.email,
+      name: attributes.name,
+      groups,
+      session,
+    };
+  } catch {
+    return null;
   }
 };
 
 /**
- * Get current authenticated user
- * @returns {Promise<Object|null>} - User object with email, name, and session
+ * Get the ID token JWT for API requests
  */
-export const getCurrentUser = () => {
-  return new Promise((resolve) => {
-    const cognitoUser = userPool.getCurrentUser();
-
-    if (!cognitoUser) {
-      resolve(null);
-      return;
-    }
-
-    cognitoUser.getSession((err, session) => {
-      if (err || !session.isValid()) {
-        resolve(null);
-        return;
-      }
-
-      cognitoUser.getUserAttributes((err, attributes) => {
-        if (err) {
-          console.error('Error getting user attributes:', err);
-          resolve(null);
-          return;
-        }
-
-        const email = attributes.find(attr => attr.Name === 'email')?.Value;
-        const name = attributes.find(attr => attr.Name === 'name')?.Value;
-
-        resolve({
-          email,
-          name,
-          session
-        });
-      });
-    });
-  });
+export const getAuthToken = async () => {
+  try {
+    const session = await fetchAuthSession();
+    return session.tokens?.idToken?.toString() ?? null;
+  } catch {
+    return null;
+  }
 };
 
 /**
- * Get authentication token for API requests
- * @returns {Promise<string|null>} - JWT token
+ * Initiate federated sign-in via Cognito Hosted UI.
+ * Amplify handles the OAuth redirect and token exchange automatically.
  */
-export const getAuthToken = () => {
-  return new Promise((resolve) => {
-    const cognitoUser = userPool.getCurrentUser();
-
-    if (!cognitoUser) {
-      resolve(null);
-      return;
-    }
-
-    cognitoUser.getSession((err, session) => {
-      if (err || !session.isValid()) {
-        resolve(null);
-        return;
-      }
-      resolve(session.getIdToken().getJwtToken());
-    });
-  });
-};
-
-/**
- * Initiate social sign-in with federated identity provider
- * @param {string} provider - 'Google', 'Facebook', 'Apple', etc.
- */
-export const federatedSignIn = (provider) => {
-  // Build the Cognito Hosted UI URL for social sign-in
-  const cognitoDomain = CONFIG.cognito.domain;
-  const clientId = CONFIG.cognito.appClientId;
-  const redirectUri = encodeURIComponent(window.location.origin);
-
-  const hostedUIUrl = `https://${cognitoDomain}/oauth2/authorize?` +
-    `identity_provider=${provider}&` +
-    `redirect_uri=${redirectUri}&` +
-    `response_type=CODE&` +
-    `client_id=${clientId}&` +
-    `scope=openid email profile`;
-
-  // Redirect to Cognito Hosted UI for social sign-in
-  window.location.href = hostedUIUrl;
+export const federatedSignIn = async (provider) => {
+  await signInWithRedirect({ provider });
 };
 
 export default {
@@ -222,5 +122,5 @@ export default {
   signOut,
   getCurrentUser,
   getAuthToken,
-  federatedSignIn
+  federatedSignIn,
 };

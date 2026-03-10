@@ -1,41 +1,47 @@
 import { createContext, useState, useEffect } from 'react';
+import { Hub } from 'aws-amplify/utils';
 import * as cognitoService from '../services/cognito';
 
-// Create Auth Context
 export const AuthContext = createContext();
 
-// Auth Provider Component
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Check for existing session on mount
-  useEffect(() => {
-    const checkSession = async () => {
-      try {
-        const user = await cognitoService.getCurrentUser();
-        setCurrentUser(user);
-      } catch (err) {
-        console.error('Session check error:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const loadUser = async () => {
+    try {
+      const user = await cognitoService.getCurrentUser();
+      setCurrentUser(user);
+    } catch (err) {
+      console.error('Failed to load user:', err);
+      setCurrentUser(null);
+    }
+  };
 
-    checkSession();
+  useEffect(() => {
+    // Listen for auth events — covers the OAuth callback (signedIn)
+    // as well as sign-out from any tab
+    const unsubscribe = Hub.listen('auth', ({ payload }) => {
+      if (payload.event === 'signedIn') {
+        loadUser().finally(() => setIsLoading(false));
+      } else if (payload.event === 'signedOut') {
+        setCurrentUser(null);
+      }
+    });
+
+    // Check for an existing session on initial load
+    loadUser().finally(() => setIsLoading(false));
+
+    return unsubscribe;
   }, []);
 
-  /**
-   * Sign in user
-   */
   const signIn = async (email, password) => {
     try {
       setError(null);
       setIsLoading(true);
       await cognitoService.signIn(email, password);
-      const user = await cognitoService.getCurrentUser();
-      setCurrentUser(user);
+      await loadUser();
       return { success: true };
     } catch (err) {
       const errorMessage = err.message || 'Failed to sign in';
@@ -46,9 +52,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  /**
-   * Sign up new user
-   */
   const signUp = async (name, email, password) => {
     try {
       setError(null);
@@ -64,9 +67,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  /**
-   * Confirm email with verification code
-   */
   const confirmEmail = async (email, code) => {
     try {
       setError(null);
@@ -82,9 +82,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  /**
-   * Resend confirmation code
-   */
   const resendCode = async (email) => {
     try {
       setError(null);
@@ -97,32 +94,17 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  /**
-   * Sign out current user
-   */
-  const signOut = () => {
-    cognitoService.signOut();
+  const signOut = async () => {
+    await cognitoService.signOut();
     setCurrentUser(null);
   };
 
-  /**
-   * Get auth token for API requests
-   */
   const getToken = async () => {
     return await cognitoService.getAuthToken();
   };
 
-  /**
-   * Refresh current user session
-   */
   const refreshSession = async () => {
-    try {
-      const user = await cognitoService.getCurrentUser();
-      setCurrentUser(user);
-    } catch (err) {
-      console.error('Failed to refresh session:', err);
-      setCurrentUser(null);
-    }
+    await loadUser();
   };
 
   const value = {
@@ -136,7 +118,7 @@ export const AuthProvider = ({ children }) => {
     resendCode,
     signOut,
     getToken,
-    refreshSession
+    refreshSession,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

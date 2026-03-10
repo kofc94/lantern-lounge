@@ -78,10 +78,10 @@ resource "aws_cloudwatch_log_group" "api_gateway_logs" {
 
 # Integration: GET /calendar/items
 resource "aws_apigatewayv2_integration" "get_items" {
-  api_id           = aws_apigatewayv2_api.calendar_api.id
-  integration_type = "AWS_PROXY"
-  integration_uri  = aws_lambda_function.get_calendar_items.invoke_arn
-  integration_method = "POST"
+  api_id                 = aws_apigatewayv2_api.calendar_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.get_calendar_items.invoke_arn
+  integration_method     = "POST"
   payload_format_version = "2.0"
 }
 
@@ -97,10 +97,10 @@ resource "aws_apigatewayv2_route" "get_items" {
 
 # Integration: POST /calendar/items
 resource "aws_apigatewayv2_integration" "create_item" {
-  api_id           = aws_apigatewayv2_api.calendar_api.id
-  integration_type = "AWS_PROXY"
-  integration_uri  = aws_lambda_function.create_calendar_item.invoke_arn
-  integration_method = "POST"
+  api_id                 = aws_apigatewayv2_api.calendar_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.create_calendar_item.invoke_arn
+  integration_method     = "POST"
   payload_format_version = "2.0"
 }
 
@@ -116,10 +116,10 @@ resource "aws_apigatewayv2_route" "create_item" {
 
 # Integration: PUT /calendar/items/{id}
 resource "aws_apigatewayv2_integration" "update_item" {
-  api_id           = aws_apigatewayv2_api.calendar_api.id
-  integration_type = "AWS_PROXY"
-  integration_uri  = aws_lambda_function.update_calendar_item.invoke_arn
-  integration_method = "POST"
+  api_id                 = aws_apigatewayv2_api.calendar_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.update_calendar_item.invoke_arn
+  integration_method     = "POST"
   payload_format_version = "2.0"
 }
 
@@ -135,10 +135,10 @@ resource "aws_apigatewayv2_route" "update_item" {
 
 # Integration: DELETE /calendar/items/{id}
 resource "aws_apigatewayv2_integration" "delete_item" {
-  api_id           = aws_apigatewayv2_api.calendar_api.id
-  integration_type = "AWS_PROXY"
-  integration_uri  = aws_lambda_function.delete_calendar_item.invoke_arn
-  integration_method = "POST"
+  api_id                 = aws_apigatewayv2_api.calendar_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.delete_calendar_item.invoke_arn
+  integration_method     = "POST"
   payload_format_version = "2.0"
 }
 

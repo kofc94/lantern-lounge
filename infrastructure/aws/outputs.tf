@@ -42,9 +42,9 @@ output "certificate_validation_records" {
   description = "DNS records created for certificate validation"
   value = {
     for dvo in aws_acm_certificate.ssl_certificate.domain_validation_options : dvo.domain_name => {
-      name   = dvo.resource_record_name
-      type   = dvo.resource_record_type
-      value  = dvo.resource_record_value
+      name  = dvo.resource_record_name
+      type  = dvo.resource_record_type
+      value = dvo.resource_record_value
     }
   }
 }
@@ -96,11 +96,11 @@ output "dynamodb_table_arn" {
 output "frontend_config" {
   description = "Configuration values for frontend JavaScript"
   value = {
-    apiEndpoint     = aws_apigatewayv2_api.calendar_api.api_endpoint
-    userPoolId      = aws_cognito_user_pool.calendar_users.id
-    userPoolRegion  = var.aws_region
-    appClientId     = aws_cognito_user_pool_client.calendar_app.id
-    cognitoDomain   = "${aws_cognito_user_pool_domain.calendar_domain.domain}.auth.${var.aws_region}.amazoncognito.com"
-    hostedUIUrl     = "https://${aws_cognito_user_pool_domain.calendar_domain.domain}.auth.${var.aws_region}.amazoncognito.com/login?client_id=${aws_cognito_user_pool_client.calendar_app.id}&response_type=code&redirect_uri=https://${local.www_domain_name}/calendar.html"
+    apiEndpoint    = aws_apigatewayv2_api.calendar_api.api_endpoint
+    userPoolId     = aws_cognito_user_pool.calendar_users.id
+    userPoolRegion = var.aws_region
+    appClientId    = aws_cognito_user_pool_client.calendar_app.id
+    cognitoDomain  = "${aws_cognito_user_pool_domain.calendar_domain.domain}.auth.${var.aws_region}.amazoncognito.com"
+    hostedUIUrl    = "https://${aws_cognito_user_pool_domain.calendar_domain.domain}.auth.${var.aws_region}.amazoncognito.com/login?client_id=${aws_cognito_user_pool_client.calendar_app.id}&response_type=code&redirect_uri=https://${local.www_domain_name}/calendar.html"
   }
 }

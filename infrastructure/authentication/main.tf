@@ -10,6 +10,24 @@ terraform {
       version = "~> 5.0"
     }
   }
+
+  backend "s3" {
+    bucket = "lanternlounge-tfstate"
+    key    = "authentication/terraform.tfstate"
+    region = "us-east-1"
+  }
+}
+
+provider "google" {}
+
+# Google OAuth credentials stored in SSM Parameter Store
+data "aws_ssm_parameter" "google_client_id" {
+  name = "/lantern-lounge/google/client-id"
+}
+
+data "aws_ssm_parameter" "google_client_secret" {
+  name            = "/lantern-lounge/google/client-secret"
+  with_decryption = true
 }
 
 # Data source to look up existing Cognito User Pool by name
@@ -24,9 +42,16 @@ resource "aws_cognito_identity_provider" "google" {
   provider_type = "Google"
 
   provider_details = {
-    authorize_scopes = "openid email profile"
-    client_id        = var.google_client_id
-    client_secret    = var.google_client_secret
+    authorize_scopes              = "openid email profile"
+    client_id                     = data.aws_ssm_parameter.google_client_id.value
+    client_secret                 = data.aws_ssm_parameter.google_client_secret.value
+    attributes_url                = "https://people.googleapis.com/v1/people/me?personFields="
+    attributes_url_add_attributes = true
+    authorize_url                 = "https://accounts.google.com/o/oauth2/v2/auth"
+    oidc_issuer                   = "https://accounts.google.com"
+    token_request_method          = "POST"
+    token_url                     = "https://www.googleapis.com/oauth2/v4/token"
+
   }
 
   attribute_mapping = {
@@ -34,70 +59,4 @@ resource "aws_cognito_identity_provider" "google" {
     name     = "name"
     username = "sub"
   }
-}
-
-# Update the existing Cognito App Client to support Google sign-in
-# Note: This requires importing the existing app client first
-# Run: terraform import aws_cognito_user_pool_client.app <user_pool_id>/<app_client_id>
-resource "aws_cognito_user_pool_client" "app" {
-  name         = "${var.project_name}-calendar-app"
-  user_pool_id = tolist(data.aws_cognito_user_pools.existing.ids)[0]
-
-  # Token validity periods
-  id_token_validity      = 60 # 60 minutes
-  access_token_validity  = 60 # 60 minutes
-  refresh_token_validity = 30 # 30 days
-
-  token_validity_units {
-    id_token      = "minutes"
-    access_token  = "minutes"
-    refresh_token = "days"
-  }
-
-  # No client secret (public client for JavaScript)
-  generate_secret = false
-
-  # Allowed OAuth flows for public clients
-  allowed_oauth_flows_user_pool_client = true
-  allowed_oauth_flows                  = ["implicit", "code"]
-  allowed_oauth_scopes                 = ["email", "openid", "profile"]
-
-  # Updated callback URLs for React app
-  callback_urls = concat(
-    [for domain in var.app_domains : "${domain}/"],
-    [for domain in var.app_domains : "${domain}/events"]
-  )
-
-  # Logout URLs
-  logout_urls = var.app_domains
-
-  # Supported identity providers - include both Cognito and Google
-  supported_identity_providers = ["COGNITO", "Google"]
-
-  # Enable token revocation
-  enable_token_revocation = true
-
-  # Prevent user existence errors
-  prevent_user_existence_errors = "ENABLED"
-
-  # Allowed read and write attributes
-  read_attributes = [
-    "email",
-    "email_verified",
-    "name"
-  ]
-
-  write_attributes = [
-    "email",
-    "name"
-  ]
-
-  # Explicit auth flows
-  explicit_auth_flows = [
-    "ALLOW_USER_SRP_AUTH",
-    "ALLOW_REFRESH_TOKEN_AUTH",
-    "ALLOW_USER_PASSWORD_AUTH"
-  ]
-
-  depends_on = [aws_cognito_identity_provider.google]
 }
