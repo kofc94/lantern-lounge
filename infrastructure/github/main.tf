@@ -40,7 +40,35 @@ resource "github_team_repository" "devs_repo_access" {
 }
 
 resource "github_team_membership" "eric" {
-  team_id = github_team.devs.id
+  team_id  = github_team.devs.id
   username = "eric-pierre"
-  role     = "maintainer" # or "maintainer"
+  role     = "maintainer"
+}
+
+locals {
+  dev_members = [
+    # Add GitHub usernames here, e.g. "mjsalerno"
+  ]
+}
+
+resource "github_team_membership" "members" {
+  for_each = toset(local.dev_members)
+  team_id  = github_team.devs.id
+  username = each.value
+  role     = "member"
+}
+
+resource "github_branch_protection" "main" {
+  repository_id = github_repository.lantern_lounge.node_id
+  pattern       = "main"
+
+  # Prevent direct pushes — changes must go through a PR
+  restrict_pushes {
+    push_allowances = []
+  }
+
+  required_pull_request_reviews {
+    required_approving_review_count = 1
+    dismiss_stale_reviews           = true
+  }
 }
