@@ -1,0 +1,124 @@
+name: OpenTofu Apply
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "infrastructure/**"
+
+jobs:
+  # ── infrastructure/aws ──────────────────────────────────────────────────────
+  apply-aws:
+    name: Apply / aws
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: us-east-1
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect changes
+        id: changes
+        run: |
+          if git diff --name-only HEAD~1 HEAD | grep -q '^infrastructure/aws/'; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - uses: opentofu/setup-opentofu@v1
+        if: steps.changes.outputs.changed == 'true'
+
+      - name: Tofu Init
+        if: steps.changes.outputs.changed == 'true'
+        working-directory: infrastructure/aws
+        run: tofu init -input=false
+
+      - name: Tofu Apply
+        if: steps.changes.outputs.changed == 'true'
+        working-directory: infrastructure/aws
+        run: tofu apply -input=false -auto-approve
+
+  # ── infrastructure/authentication ───────────────────────────────────────────
+  apply-authentication:
+    name: Apply / authentication
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: us-east-1
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect changes
+        id: changes
+        run: |
+          if git diff --name-only HEAD~1 HEAD | grep -q '^infrastructure/authentication/'; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - uses: opentofu/setup-opentofu@v1
+        if: steps.changes.outputs.changed == 'true'
+
+      - name: Tofu Init
+        if: steps.changes.outputs.changed == 'true'
+        working-directory: infrastructure/authentication
+        run: tofu init -input=false
+
+      - name: Tofu Apply
+        if: steps.changes.outputs.changed == 'true'
+        working-directory: infrastructure/authentication
+        run: tofu apply -input=false -auto-approve
+
+  # ── infrastructure/github ───────────────────────────────────────────────────
+  apply-github:
+    name: Apply / github
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: us-east-1
+      GITHUB_TOKEN: ${{ secrets.GH_TOFU_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect changes
+        id: changes
+        run: |
+          if git diff --name-only HEAD~1 HEAD | grep -q '^infrastructure/github/'; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - uses: opentofu/setup-opentofu@v1
+        if: steps.changes.outputs.changed == 'true'
+
+      - name: Tofu Init
+        if: steps.changes.outputs.changed == 'true'
+        working-directory: infrastructure/github
+        run: tofu init -input=false
+
+      - name: Tofu Apply
+        if: steps.changes.outputs.changed == 'true'
+        working-directory: infrastructure/github
+        run: tofu apply -input=false -auto-approve

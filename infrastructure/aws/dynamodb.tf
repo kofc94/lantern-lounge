@@ -1,9 +1,9 @@
 # DynamoDB table for calendar items
 resource "aws_dynamodb_table" "calendar_items" {
-  name           = "${var.project_name}-calendar-items"
-  billing_mode   = "PAY_PER_REQUEST" # On-demand pricing - most cost-effective for low traffic
-  hash_key       = "id"
-  range_key      = "timestamp"
+  name         = "${var.project_name}-calendar-items"
+  billing_mode = "PAY_PER_REQUEST" # On-demand pricing - most cost-effective for low traffic
+  hash_key     = "id"
+  range_key    = "timestamp"
 
   attribute {
     name = "id"

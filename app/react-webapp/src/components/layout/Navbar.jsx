@@ -84,7 +84,7 @@ const Navbar = () => {
                 className="ml-4 bg-primary hover:bg-primary-hover text-white rounded-full px-6 py-3 font-medium transition-all hover:-translate-y-0.5 shadow-md hover:shadow-lg"
               >
                 {isAuthenticated
-                  ? currentUser?.name || currentUser?.email || 'Account'
+                  ? currentUser?.name?.split(' ')[0] || currentUser?.email || 'Account'
                   : 'Member Login'}
               </button>
             </li>
@@ -150,7 +150,7 @@ const Navbar = () => {
                 className="w-full text-left px-4 py-3 rounded-lg bg-primary hover:bg-primary-hover text-white font-medium transition-all"
               >
                 {isAuthenticated
-                  ? currentUser?.name || currentUser?.email || 'Account'
+                  ? currentUser?.name?.split(' ')[0] || currentUser?.email || 'Account'
                   : 'Member Login'}
               </button>
             </li>

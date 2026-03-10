@@ -1,15 +1,3 @@
-variable "google_client_id" {
-  description = "Google OAuth 2.0 Client ID from Google Cloud Console"
-  type        = string
-  sensitive   = true
-}
-
-variable "google_client_secret" {
-  description = "Google OAuth 2.0 Client Secret from Google Cloud Console"
-  type        = string
-  sensitive   = true
-}
-
 variable "project_name" {
   description = "Name of the project (must match aws module)"
   type        = string
@@ -28,12 +16,18 @@ variable "aws_region" {
   default     = "us-east-1"
 }
 
-variable "app_domains" {
-  description = "List of application domains for OAuth callbacks"
-  type        = list(string)
-  default = [
-    "http://localhost:5174",
-    "https://www.lanternlounge.org",
-    "https://lanternlounge.org"
-  ]
+variable "google_org_id" {
+  description = "Google Cloud organization ID for eledonne-org"
+  type        = string
+}
+
+variable "google_project_id" {
+  description = "Google Cloud project ID (must be globally unique)"
+  type        = string
+  default     = "lantern-lounge-auth"
+}
+
+variable "google_support_email" {
+  description = "Support email shown on the Google OAuth consent screen"
+  type        = string
 }
