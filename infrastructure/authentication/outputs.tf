@@ -17,3 +17,8 @@ output "google_project_number" {
   description = "Google Cloud project number"
   value       = google_project.lantern_lounge.number
 }
+
+output "terraform_ci_service_account_email" {
+  description = "Email of the Terraform CI service account — use this to download the key"
+  value       = google_service_account.terraform_ci.email
+}
