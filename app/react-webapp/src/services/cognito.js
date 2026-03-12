@@ -78,17 +78,23 @@ export const signOut = async () => {
 export const getCurrentUser = async () => {
   try {
     await amplifyGetCurrentUser();
-    const [attributes, session] = await Promise.all([
-      fetchUserAttributes(),
-      fetchAuthSession(),
-    ]);
+    const session = await fetchAuthSession();
     const groups = session.tokens?.idToken?.payload['cognito:groups'] ?? [];
-    return {
-      email: attributes.email,
-      name: attributes.name,
-      groups,
-      session,
-    };
+    const tokenPayload = session.tokens?.idToken?.payload ?? {};
+
+    let email = tokenPayload.email;
+    let name = tokenPayload.name;
+
+    // For native Cognito users, fetchUserAttributes is more reliable
+    try {
+      const attributes = await fetchUserAttributes();
+      email = attributes.email ?? email;
+      name = attributes.name ?? name;
+    } catch {
+      // Federated (Google) users may not support fetchUserAttributes — fall back to token claims
+    }
+
+    return { email, name, groups, session };
   } catch {
     return null;
   }
