@@ -13,8 +13,9 @@ All modules share a remote state backend in S3:
 
 | Module | Path | What it manages |
 |---|---|---|
-| AWS core | `aws/` | S3 buckets, CloudFront, Route53, ACM certificate |
-| Authentication | `authentication/` | Cognito User Pool, Google OAuth IdP, App Client |
+| AWS | `aws/` | S3, CloudFront, Route53, ACM, GitHub OIDC IAM |
+| App | `app/` | Cognito, Lambda, DynamoDB, API Gateway, Google IdP |
+| Google | `google/` | Google Cloud project, IAP brand, CI service account |
 | GitHub | `github/` | Repo settings, teams, branch protection |
 
 ---
@@ -37,9 +38,15 @@ Or use an AWS profile:
 export AWS_PROFILE=lantern-lounge
 ```
 
-### 2. Google OAuth credentials (authentication module only)
+### 2. Google credentials (authentication module only)
 
-The `authentication` module reads the Google OAuth 2.0 Client ID and Secret from **AWS SSM Parameter Store** rather than Terraform variables. Store them once before running this module:
+The `authentication` module needs Application Default Credentials to manage Google Cloud resources:
+
+```bash
+gcloud auth application-default login
+```
+
+The Google OAuth Client ID and Secret are stored in **AWS SSM Parameter Store**. Store them once after creating an OAuth 2.0 client in [Google Cloud Console](https://console.cloud.google.com/) under **APIs & Services → Credentials**:
 
 ```bash
 aws ssm put-parameter \
@@ -52,15 +59,6 @@ aws ssm put-parameter \
   --value "YOUR_GOOGLE_CLIENT_SECRET" \
   --type SecureString
 ```
-
-Retrieve them at any time with:
-
-```bash
-aws ssm get-parameter --name /lantern-lounge/google/client-id
-aws ssm get-parameter --name /lantern-lounge/google/client-secret --with-decryption
-```
-
-> The Google Client ID and Secret are created in [Google Cloud Console](https://console.cloud.google.com/) under **APIs & Services → Credentials → OAuth 2.0 Client IDs**.
 
 ### 3. GitHub token (github module only)
 
@@ -109,7 +107,7 @@ tofu import aws_cognito_user_pool_client.app <user_pool_id>/<app_client_id>
 
 ## CI/CD (GitHub Actions)
 
-Two workflows automate plan and apply on every infrastructure change.
+Two workflows automate plan and apply on every infrastructure change. AWS authentication uses **OIDC** — no long-lived AWS keys are stored in GitHub.
 
 ### How it works
 
@@ -118,24 +116,76 @@ Two workflows automate plan and apply on every infrastructure change.
 | Pull request touching `infrastructure/**` | `tofu-plan.yml` | Runs `tofu plan` for each changed module, posts output as a PR comment, blocks merge on error |
 | Merge to `main` touching `infrastructure/**` | `tofu-apply.yml` | Runs `tofu apply` for each changed module |
 
-### Required GitHub Actions secrets
+### Bootstrap (one-time setup)
 
-Go to **Settings → Secrets and variables → Actions** and add:
+CI/CD requires a one-time local bootstrap before it can manage itself.
 
-| Secret | Description |
-|---|---|
-| `AWS_ACCESS_KEY_ID` | AWS access key for all modules |
-| `AWS_SECRET_ACCESS_KEY` | AWS secret key for all modules |
-| `GH_TOFU_TOKEN` | GitHub PAT with `repo` + `admin:org` scopes (github module) |
+**Step 1 — Apply the `aws` module locally** to create the OIDC provider and IAM role:
 
-> The `authentication` module no longer needs `TF_VAR_GOOGLE_CLIENT_ID` or `TF_VAR_GOOGLE_CLIENT_SECRET` as GitHub secrets — those values are read directly from SSM Parameter Store at plan/apply time.
+```bash
+cd infrastructure/aws
+tofu init && tofu apply
+```
+
+> If a GitHub OIDC provider already exists in your AWS account, import it first:
+> ```bash
+> tofu import aws_iam_openid_connect_provider.github \
+>   arn:aws:iam::ACCOUNT_ID:oidc-provider/token.actions.githubusercontent.com
+> ```
+
+**Step 2 — Set `GH_TOFU_TOKEN` manually** — this is the only secret that cannot be automated, as it bootstraps the GitHub provider itself:
+
+1. Click your **profile picture** (top right) → **Settings**
+2. Scroll to the bottom of the left sidebar → **Developer settings → Personal access tokens → Tokens (classic)**
+3. **Generate new token (classic)** with **`repo`** and **`admin:org`** scopes
+4. Go to the repo → **Settings → Secrets and variables → Actions → New repository secret**
+5. Name: `GH_TOFU_TOKEN`, value: the token
+
+**Step 3 — Apply the `google` module locally** to create the Google service account, generate its key, and store it in SSM:
+
+```bash
+cd infrastructure/google
+tofu init && tofu apply
+```
+
+**Step 4 — Apply the `app` module locally** to set up Cognito, Lambda, DynamoDB, and API Gateway:
+
+```bash
+cd infrastructure/app
+tofu init && tofu apply
+```
+
+**Step 5 — Apply the `github` module locally** to push the remaining secrets/variables to GitHub Actions from their sources (AWS state + SSM):
+
+```bash
+cd infrastructure/github
+tofu init && tofu apply
+```
+
+After this, all subsequent infrastructure changes can be made via PRs — no local credentials needed.
+
+### GitHub Actions secrets and variables
+
+All are managed by Terraform after bootstrap — **do not set these manually**:
+
+| Type | Name | Managed by | Source |
+|---|---|---|---|
+| Variable | `AWS_ROLE_ARN` | `github` module | AWS Terraform state |
+| Secret | `GOOGLE_CREDENTIALS` | `github` module | AWS SSM |
+
+The one manually managed secret:
+
+| Type | Name | How to set |
+|---|---|---|
+| Secret | `GH_TOFU_TOKEN` | Manually — see bootstrap step 2 above |
 
 ### Blocking merge on plan failure
 
 To enforce that a failed `tofu plan` blocks a PR from merging, add these as **required status checks** in branch protection (**Settings → Branches → main**):
 
 - `Plan / aws`
-- `Plan / authentication`
+- `Plan / app`
+- `Plan / google`
 - `Plan / github`
 
 ---
@@ -203,5 +253,6 @@ Each module has its own state key in the shared S3 bucket:
 | Module | State key |
 |---|---|
 | `aws` | `terraform.tfstate` |
-| `authentication` | `authentication/terraform.tfstate` |
+| `app` | `app/terraform.tfstate` |
+| `google` | `google/terraform.tfstate` |
 | `github` | `github/terraform.tfstate` |

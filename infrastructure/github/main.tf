@@ -5,6 +5,10 @@ terraform {
       source  = "integrations/github"
       version = "~> 6.0"
     }
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
   }
 
   backend "s3" {
@@ -18,11 +22,23 @@ provider "github" {
   owner = "kofc94"
 }
 
+provider "aws" {
+  region = "us-east-1"
+}
+
+data "terraform_remote_state" "aws" {
+  backend = "s3"
+  config = {
+    bucket = "lanternlounge-tfstate"
+    key    = "terraform.tfstate"
+    region = "us-east-1"
+  }
+}
+
 
 resource "github_repository" "lantern_lounge" {
   name = "lantern-lounge"
   description = "Member Association Website, infra and software"
-  has_downloads = true
   has_issues = true
   has_projects = true
 }
@@ -56,6 +72,23 @@ resource "github_team_membership" "members" {
   team_id  = github_team.devs.id
   username = each.value
   role     = "member"
+}
+
+data "aws_ssm_parameter" "google_credentials" {
+  name            = "/lantern-lounge/google/service-account-key"
+  with_decryption = true
+}
+
+resource "github_actions_secret" "google_credentials" {
+  repository      = github_repository.lantern_lounge.name
+  secret_name     = "GOOGLE_CREDENTIALS"
+  plaintext_value = data.aws_ssm_parameter.google_credentials.value
+}
+
+resource "github_actions_variable" "aws_role_arn" {
+  repository    = github_repository.lantern_lounge.name
+  variable_name = "AWS_ROLE_ARN"
+  value         = data.terraform_remote_state.aws.outputs.github_actions_role_arn
 }
 
 resource "github_branch_protection" "main" {

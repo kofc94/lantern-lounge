@@ -48,6 +48,7 @@ locals {
     "arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess",
     "arn:aws:iam::aws:policy/AmazonAPIGatewayAdministrator",
     "arn:aws:iam::aws:policy/AmazonSSMReadOnlyAccess",
+    "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess",
   ]
 }
 
@@ -122,9 +123,4 @@ resource "aws_iam_role_policy" "github_actions_terraform" {
       },
     ]
   })
-}
-
-output "github_actions_role_arn" {
-  description = "IAM role ARN to set as AWS_ROLE_ARN in GitHub Actions variables"
-  value       = aws_iam_role.github_actions_terraform.arn
 }

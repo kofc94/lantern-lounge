@@ -10,7 +10,7 @@ infrastructure/terraform.tfvars
 *.tfplan.*
 
 infrastructure/*/.terraform
-
+infrastructure/*/.terraform.lock.hcl
 # OS generated files
 .DS_Store
 .DS_Store?
