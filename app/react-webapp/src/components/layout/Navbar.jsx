@@ -47,7 +47,7 @@ const Navbar = () => {
           {/* Logo and Brand */}
           <Link to="/" className="flex items-center space-x-4 hover:opacity-80 transition-opacity">
             <img
-              src="/assets/logo.png"
+              src="/assets/logo-512.png"
               alt="Lantern Lounge Logo"
               className="h-12 w-12 object-contain"
             />

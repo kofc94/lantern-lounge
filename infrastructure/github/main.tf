@@ -47,7 +47,7 @@ resource "github_team_membership" "eric" {
 
 locals {
   dev_members = [
-    # Add GitHub usernames here, e.g. "mjsalerno"
+    "saravkottur", # Saravanan Varatharajan
   ]
 }
 

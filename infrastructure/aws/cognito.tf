@@ -106,14 +106,14 @@ resource "aws_cognito_user_pool_client" "calendar_app" {
   callback_urls = [
     "https://${local.www_domain_name}/",
     "https://${local.domain_name}/",
-    "http://localhost:5174/"
+    "http://localhost:5173/"
   ]
 
   # Logout URLs
   logout_urls = [
     "https://${local.www_domain_name}/",
     "https://${local.domain_name}/",
-    "http://localhost:5174/"
+    "http://localhost:5173/"
   ]
 
   # Supported identity providers
