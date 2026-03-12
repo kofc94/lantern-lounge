@@ -7,4 +7,9 @@ export default defineConfig({
   define: {
     global: 'window',
   },
+  server: {
+    proxy: {
+      '/calendar': 'http://localhost:3001',
+    },
+  },
 })

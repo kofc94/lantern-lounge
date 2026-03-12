@@ -9,6 +9,13 @@ Prefer infrastructure-as-code over manual changes. Any new cloud resource (AWS, 
 
 ---
 
+## Critical Rules 🚨
+
+Under no circumpstance should any code rely on any sensitive value; the repository is public. Sensitive values are to be store in AWS Parameter Store.
+
+Keep the README.md updated after each changes
+
+
 ## Repository structure
 
 ```
@@ -16,7 +23,6 @@ lantern-lounge/
 ├── app/                        # Application code
 │   ├── react-webapp/           # React SPA (primary frontend)
 │   ├── lambda/                 # Python Lambda functions (calendar API)
-│   └── webapp/                 # Legacy vanilla HTML/CSS/JS site
 ├── infrastructure/             # OpenTofu infrastructure modules
 │   ├── aws/                    # Core AWS infra (S3, CloudFront, Route53, ACM)
 │   ├── authentication/         # Cognito + Google OAuth

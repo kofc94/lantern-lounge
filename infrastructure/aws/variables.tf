@@ -15,3 +15,9 @@ variable "project_name" {
   type        = string
   default     = "lantern-lounge"
 }
+
+variable "admin_email" {
+  description = "Email address for the SSO admin user (Eric LeDonne)"
+  type        = string
+  default     = "eledonne@gmail.com"
+}
