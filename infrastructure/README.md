@@ -13,8 +13,9 @@ All modules share a remote state backend in S3:
 
 | Module | Path | What it manages |
 |---|---|---|
-| AWS core | `aws/` | S3 buckets, CloudFront, Route53, ACM certificate |
-| Authentication | `authentication/` | Cognito User Pool, Google OAuth IdP, App Client |
+| AWS | `aws/` | S3, CloudFront, Route53, ACM, GitHub OIDC IAM |
+| App | `app/` | Cognito, Lambda, DynamoDB, API Gateway, Google IdP |
+| Google | `google/` | Google Cloud project, IAP brand, CI service account |
 | GitHub | `github/` | Repo settings, teams, branch protection |
 
 ---
@@ -140,14 +141,21 @@ tofu init && tofu apply
 4. Go to the repo → **Settings → Secrets and variables → Actions → New repository secret**
 5. Name: `GH_TOFU_TOKEN`, value: the token
 
-**Step 3 — Apply the `authentication` module locally** to create the Google service account, generate its key, and store it in SSM:
+**Step 3 — Apply the `google` module locally** to create the Google service account, generate its key, and store it in SSM:
 
 ```bash
-cd infrastructure/authentication
+cd infrastructure/google
 tofu init && tofu apply
 ```
 
-**Step 4 — Apply the `github` module locally** to push the remaining secrets/variables to GitHub Actions from their sources (AWS state + SSM):
+**Step 4 — Apply the `app` module locally** to set up Cognito, Lambda, DynamoDB, and API Gateway:
+
+```bash
+cd infrastructure/app
+tofu init && tofu apply
+```
+
+**Step 5 — Apply the `github` module locally** to push the remaining secrets/variables to GitHub Actions from their sources (AWS state + SSM):
 
 ```bash
 cd infrastructure/github
@@ -176,7 +184,8 @@ The one manually managed secret:
 To enforce that a failed `tofu plan` blocks a PR from merging, add these as **required status checks** in branch protection (**Settings → Branches → main**):
 
 - `Plan / aws`
-- `Plan / authentication`
+- `Plan / app`
+- `Plan / google`
 - `Plan / github`
 
 ---
@@ -244,5 +253,6 @@ Each module has its own state key in the shared S3 bucket:
 | Module | State key |
 |---|---|
 | `aws` | `terraform.tfstate` |
-| `authentication` | `authentication/terraform.tfstate` |
+| `app` | `app/terraform.tfstate` |
+| `google` | `google/terraform.tfstate` |
 | `github` | `github/terraform.tfstate` |
