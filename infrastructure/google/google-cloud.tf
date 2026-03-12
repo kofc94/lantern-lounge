@@ -6,6 +6,14 @@ resource "google_project" "lantern_lounge" {
 }
 
 # Enable required APIs
+# Note: cloudresourcemanager.googleapis.com must be enabled manually before first apply:
+#   gcloud services enable cloudresourcemanager.googleapis.com --project=PROJECT_ID
+resource "google_project_service" "cloudresourcemanager" {
+  project            = google_project.lantern_lounge.project_id
+  service            = "cloudresourcemanager.googleapis.com"
+  disable_on_destroy = false
+}
+
 resource "google_project_service" "iap" {
   project            = google_project.lantern_lounge.project_id
   service            = "iap.googleapis.com"
