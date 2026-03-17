@@ -175,6 +175,7 @@ resource "aws_cognito_user_group" "admin" {
 locals {
   admin_users = [
     # "109876543210987654321",  # example: Jane Doe (jane@example.com)
+    "Google_104269928361937576762"
   ]
 }
 

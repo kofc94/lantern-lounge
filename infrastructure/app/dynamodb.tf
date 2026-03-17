@@ -21,23 +21,15 @@ resource "aws_dynamodb_table" "calendar_items" {
   }
 
   attribute {
-    name = "isPublic"
-    type = "N" # Number (0 or 1, for GSI)
+    name = "gsipk"
+    type = "S" # Static partition key for GSIs (e.g. "EVENT")
   }
 
-  # Global Secondary Index for querying public items by date
-  global_secondary_index {
-    name            = "PublicItemsByDate"
-    hash_key        = "isPublic"
-    range_key       = "date"
-    projection_type = "ALL"
-  }
-
-  # Global Secondary Index for querying all items by date (for authenticated users)
+  # Global Secondary Index for querying all items by date range
   global_secondary_index {
     name            = "ItemsByDate"
-    hash_key        = "date"
-    range_key       = "timestamp"
+    hash_key        = "gsipk"
+    range_key       = "date"
     projection_type = "ALL"
   }
 

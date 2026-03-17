@@ -1,15 +1,23 @@
+# ── Lambda Code Packaging ─────────────────────────────────────────────────────
+
+data "archive_file" "calendar_api" {
+  type        = "zip"
+  source_dir  = "${path.module}/lambda/api"
+  output_path = "${path.module}/lambda/calendar-api.zip"
+}
+
+data "archive_file" "post_confirmation" {
+  type        = "zip"
+  source_file = "${path.module}/lambda/auth/post_confirmation.py"
+  output_path = "${path.module}/lambda/post_confirmation.zip"
+}
+
 # ── Post-confirmation Lambda (auto-assigns users to the member group) ──────────
 
 # Data source lookup breaks the circular dependency between the Lambda
 # (which needs the pool ID) and the User Pool (which needs the Lambda ARN).
 data "aws_cognito_user_pools" "main" {
   name = "${var.project_name}-calendar-users"
-}
-
-data "archive_file" "post_confirmation" {
-  type        = "zip"
-  source_file = "${path.module}/../../app/lambda/post_confirmation.py"
-  output_path = "${path.module}/../../app/lambda/post_confirmation.zip"
 }
 
 resource "aws_iam_role" "post_confirmation_role" {
@@ -139,11 +147,11 @@ resource "aws_iam_role_policy_attachment" "calendar_lambda_basic" {
 
 # Lambda function: Get Calendar Items
 resource "aws_lambda_function" "get_calendar_items" {
-  filename         = "${path.module}/../../app/lambda/calendar-api.zip"
+  filename         = data.archive_file.calendar_api.output_path
   function_name    = "${var.project_name}-get-calendar-items"
   role             = aws_iam_role.calendar_lambda_role.arn
   handler          = "get_items.handler"
-  source_code_hash = filebase64sha256("${path.module}/../../app/lambda/calendar-api.zip")
+  source_code_hash = data.archive_file.calendar_api.output_base64sha256
   runtime          = "python3.11"
   timeout          = 30
 
@@ -162,11 +170,11 @@ resource "aws_lambda_function" "get_calendar_items" {
 
 # Lambda function: Create Calendar Item
 resource "aws_lambda_function" "create_calendar_item" {
-  filename         = "${path.module}/../../app/lambda/calendar-api.zip"
+  filename         = data.archive_file.calendar_api.output_path
   function_name    = "${var.project_name}-create-calendar-item"
   role             = aws_iam_role.calendar_lambda_role.arn
   handler          = "create_item.handler"
-  source_code_hash = filebase64sha256("${path.module}/../../app/lambda/calendar-api.zip")
+  source_code_hash = data.archive_file.calendar_api.output_base64sha256
   runtime          = "python3.11"
   timeout          = 30
 
@@ -185,11 +193,11 @@ resource "aws_lambda_function" "create_calendar_item" {
 
 # Lambda function: Update Calendar Item
 resource "aws_lambda_function" "update_calendar_item" {
-  filename         = "${path.module}/../../app/lambda/calendar-api.zip"
+  filename         = data.archive_file.calendar_api.output_path
   function_name    = "${var.project_name}-update-calendar-item"
   role             = aws_iam_role.calendar_lambda_role.arn
   handler          = "update_item.handler"
-  source_code_hash = filebase64sha256("${path.module}/../../app/lambda/calendar-api.zip")
+  source_code_hash = data.archive_file.calendar_api.output_base64sha256
   runtime          = "python3.11"
   timeout          = 30
 
@@ -208,11 +216,11 @@ resource "aws_lambda_function" "update_calendar_item" {
 
 # Lambda function: Delete Calendar Item
 resource "aws_lambda_function" "delete_calendar_item" {
-  filename         = "${path.module}/../../app/lambda/calendar-api.zip"
+  filename         = data.archive_file.calendar_api.output_path
   function_name    = "${var.project_name}-delete-calendar-item"
   role             = aws_iam_role.calendar_lambda_role.arn
   handler          = "delete_item.handler"
-  source_code_hash = filebase64sha256("${path.module}/../../app/lambda/calendar-api.zip")
+  source_code_hash = data.archive_file.calendar_api.output_base64sha256
   runtime          = "python3.11"
   timeout          = 30
 

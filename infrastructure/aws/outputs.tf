@@ -32,3 +32,8 @@ output "github_actions_role_arn" {
   description = "IAM role ARN to set as AWS_ROLE_ARN in GitHub Actions variables"
   value       = aws_iam_role.github_actions_terraform.arn
 }
+
+output "sso_portal_url" {
+  description = "AWS access portal URL — set a custom subdomain in IAM Identity Center → Settings → Customize AWS access portal URL"
+  value       = "https://${tolist(data.aws_ssoadmin_instances.main.identity_store_ids)[0]}.awsapps.com/start"
+}

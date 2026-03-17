@@ -104,7 +104,7 @@ resource "aws_s3_bucket_website_configuration" "website" {
   }
 
   error_document {
-    key = "404.html"
+    key = "index.html"
   }
 }
 
@@ -167,6 +167,37 @@ resource "aws_route53_record" "ssl_validation" {
   zone_id         = data.aws_route53_zone.main.zone_id
 }
 
+# Custom Cache Policy for API - includes Authorization header and Query Strings in cache key
+resource "aws_cloudfront_cache_policy" "api_cache_policy" {
+  name        = "API-Cache-Policy"
+  comment     = "Policy for caching API Gateway responses including Authorization header"
+  default_ttl = 300
+  max_ttl     = 3600
+  min_ttl     = 0
+
+  parameters_in_cache_key_and_forwarded_to_origin {
+    cookies_config {
+      cookie_behavior = "none"
+    }
+    headers_config {
+      header_behavior = "whitelist"
+      headers {
+        items = ["Authorization"]
+      }
+    }
+    query_strings_config {
+      query_string_behavior = "all"
+    }
+    enable_accept_encoding_gzip   = true
+    enable_accept_encoding_brotli = true
+  }
+}
+
+# Managed Origin Request Policy for API (AllViewerExceptHostHeader)
+data "aws_cloudfront_origin_request_policy" "all_viewer_except_host" {
+  name = "Managed-AllViewerExceptHostHeader"
+}
+
 # Temporary CloudFront distribution without SSL certificate for testing
 resource "aws_cloudfront_distribution" "website_distribution_temp" {
   origin {
@@ -181,11 +212,21 @@ resource "aws_cloudfront_distribution" "website_distribution_temp" {
     }
   }
 
+  origin {
+    domain_name = var.api_gateway_domain
+    origin_id   = "APIGateway"
+
+    custom_origin_config {
+      http_port              = 80
+      https_port             = 443
+      origin_protocol_policy = "https-only"
+      origin_ssl_protocols   = ["TLSv1.2"]
+    }
+  }
+
   enabled             = true
   is_ipv6_enabled     = true
   default_root_object = "index.html"
-
-  # No aliases for now - use CloudFront domain
 
   default_cache_behavior {
     allowed_methods        = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
@@ -204,6 +245,19 @@ resource "aws_cloudfront_distribution" "website_distribution_temp" {
     min_ttl     = 0
     default_ttl = 3600
     max_ttl     = 86400
+  }
+
+  # Cache behavior for API
+  ordered_cache_behavior {
+    path_pattern           = "/calendar/*"
+    allowed_methods        = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
+    cached_methods         = ["GET", "HEAD"]
+    target_origin_id       = "APIGateway"
+    compress               = true
+    viewer_protocol_policy = "redirect-to-https"
+
+    cache_policy_id          = aws_cloudfront_cache_policy.api_cache_policy.id
+    origin_request_policy_id = data.aws_cloudfront_origin_request_policy.all_viewer_except_host.id
   }
 
   # Cache behavior for static assets
@@ -228,6 +282,18 @@ resource "aws_cloudfront_distribution" "website_distribution_temp" {
     max_ttl     = 31536000
   }
 
+  custom_error_response {
+    error_code            = 404
+    response_code         = 200
+    response_page_path    = "/index.html"
+  }
+
+  custom_error_response {
+    error_code            = 403
+    response_code         = 200
+    response_page_path    = "/index.html"
+  }
+
   price_class = "PriceClass_100"
 
   restrictions {
@@ -245,10 +311,8 @@ resource "aws_cloudfront_distribution" "website_distribution_temp" {
     Environment = "production"
   }
 }
-# Phase 2: SSL Certificate validation and CloudFront with custom domain
-# Run this AFTER Phase 1 is deployed and DNS nameservers are updated
 
-# SSL certificate validation (run after DNS is propagated)
+# SSL certificate validation
 resource "aws_acm_certificate_validation" "ssl_validation" {
   provider                = aws.us_east_1
   certificate_arn         = aws_acm_certificate.ssl_certificate.arn
@@ -263,7 +327,7 @@ resource "aws_acm_certificate_validation" "ssl_validation" {
   }
 }
 
-# CloudFront distribution with SSL certificate (replaces temp distribution)
+# CloudFront distribution with SSL certificate
 resource "aws_cloudfront_distribution" "website_distribution" {
   origin {
     domain_name = aws_s3_bucket_website_configuration.website.website_endpoint
@@ -273,6 +337,18 @@ resource "aws_cloudfront_distribution" "website_distribution" {
       http_port              = 80
       https_port             = 443
       origin_protocol_policy = "http-only"
+      origin_ssl_protocols   = ["TLSv1.2"]
+    }
+  }
+
+  origin {
+    domain_name = var.api_gateway_domain
+    origin_id   = "APIGateway"
+
+    custom_origin_config {
+      http_port              = 80
+      https_port             = 443
+      origin_protocol_policy = "https-only"
       origin_ssl_protocols   = ["TLSv1.2"]
     }
   }
@@ -301,6 +377,19 @@ resource "aws_cloudfront_distribution" "website_distribution" {
     max_ttl     = 86400
   }
 
+  # Cache behavior for API
+  ordered_cache_behavior {
+    path_pattern           = "/calendar/*"
+    allowed_methods        = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
+    cached_methods         = ["GET", "HEAD"]
+    target_origin_id       = "APIGateway"
+    compress               = true
+    viewer_protocol_policy = "redirect-to-https"
+
+    cache_policy_id          = aws_cloudfront_cache_policy.api_cache_policy.id
+    origin_request_policy_id = data.aws_cloudfront_origin_request_policy.all_viewer_except_host.id
+  }
+
   # Cache behavior for static assets
   ordered_cache_behavior {
     path_pattern           = "/assets/*"
@@ -321,6 +410,18 @@ resource "aws_cloudfront_distribution" "website_distribution" {
     min_ttl     = 0
     default_ttl = 86400
     max_ttl     = 31536000
+  }
+
+  custom_error_response {
+    error_code            = 404
+    response_code         = 200
+    response_page_path    = "/index.html"
+  }
+
+  custom_error_response {
+    error_code            = 403
+    response_code         = 200
+    response_page_path    = "/index.html"
   }
 
   price_class = "PriceClass_100"

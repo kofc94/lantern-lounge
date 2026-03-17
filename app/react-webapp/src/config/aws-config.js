@@ -1,8 +1,8 @@
 // AWS Cognito and API Configuration
 
 const CONFIG = {
-  // API Gateway endpoint
-  apiEndpoint: 'https://ms0hk6rhol.execute-api.us-east-1.amazonaws.com',
+  // API Gateway endpoint — empty in dev (Vite proxies /calendar/* to mock server)
+  apiEndpoint: import.meta.env.VITE_API_ENDPOINT ?? '',
 
   // Cognito User Pool Configuration
   cognito: {
