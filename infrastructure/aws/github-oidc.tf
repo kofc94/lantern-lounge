@@ -191,10 +191,12 @@ resource "aws_iam_role_policy" "github_actions_terraform_org_sso" {
           "identitystore:CreateUser",
           "identitystore:DeleteUser",
           "identitystore:ListGroupMemberships",
+          "identitystore:DescribeGroupMembership",
           "identitystore:CreateGroupMembership",
           "identitystore:DeleteGroupMembership",
           "identitystore:GetGroupId",
-          "identitystore:GetUserId"
+          "identitystore:GetUserId",
+          "identitystore:IsMemberInGroups"
         ]
         Resource = "*"
       },
