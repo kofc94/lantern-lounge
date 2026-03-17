@@ -1,81 +1,44 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { fetchEvents, createEvent as apiCreateEvent, updateEvent as apiUpdateEvent, deleteEvent as apiDeleteEvent } from '../services/api';
+import { useAuth } from './useAuth';
 
 /**
- * Custom hook for managing events (LocalStorage-based)
- * Used by Events page (simpler than Calendar page which uses API)
+ * Custom hook for managing events (API-based)
  */
 export const useEvents = () => {
+  const { getToken, isAuthenticated } = useAuth();
   const [events, setEvents] = useState([]);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Load events from localStorage on mount
-  useEffect(() => {
-    const loadEvents = () => {
-      try {
-        const stored = localStorage.getItem('lanternLoungeEvents');
-        if (stored) {
-          return JSON.parse(stored);
-        }
-        // Return sample events if none exist
-        return getSampleEvents();
-      } catch (error) {
-        console.error('Error loading events:', error);
-        return [];
-      }
-    };
-
-    setEvents(loadEvents());
-  }, []);
-
-  // Save events to localStorage whenever they change
-  useEffect(() => {
-    if (events.length > 0) {
-      try {
-        localStorage.setItem('lanternLoungeEvents', JSON.stringify(events));
-      } catch (error) {
-        console.error('Error saving events:', error);
-      }
+  const loadEvents = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Calculate start and end date for current month view (including padded days)
+      const year = currentMonth.getFullYear();
+      const month = currentMonth.getMonth();
+      const startDate = new Date(year, month - 1, 20).toISOString().split('T')[0];
+      const endDate = new Date(year, month + 1, 10).toISOString().split('T')[0];
+      
+      const authToken = isAuthenticated ? await getToken() : null;
+      const fetchedEvents = await fetchEvents(startDate, endDate, authToken);
+      setEvents(fetchedEvents);
+    } catch (err) {
+      console.error('Error loading events:', err);
+      setError('Failed to load events');
+    } finally {
+      setIsLoading(false);
     }
-  }, [events]);
+  }, [currentMonth, getToken, isAuthenticated]);
 
-  const getSampleEvents = () => [
-    {
-      id: 'event1',
-      title: 'Trivia Night',
-      date: '2024-12-28',
-      description: 'Test your knowledge with our weekly trivia competition! Prizes for the winners.',
-      createdBy: 'admin'
-    },
-    {
-      id: 'event2',
-      title: 'Cribbage Tournament',
-      date: '2024-12-30',
-      description: 'Monthly cribbage tournament. All skill levels welcome!',
-      createdBy: 'admin'
-    },
-    {
-      id: 'event3',
-      title: "New Year's Eve Party",
-      date: '2024-12-31',
-      description: 'Ring in the new year with friends! Music, drinks, and celebration.',
-      createdBy: 'admin'
-    },
-    {
-      id: 'event4',
-      title: 'Painting Night',
-      date: '2025-01-03',
-      description: 'Create your own masterpiece while enjoying drinks with friends.',
-      createdBy: 'admin'
-    },
-    {
-      id: 'event5',
-      title: 'Whisky Tasting',
-      date: '2025-01-05',
-      description: 'Sample fine whiskies from around the world. Limited spots available.',
-      createdBy: 'admin'
-    }
-  ];
+  // Load events on mount and when month changes
+  useEffect(() => {
+    loadEvents();
+  }, [loadEvents]);
 
   const navigateMonth = (direction) => {
     const newDate = new Date(currentMonth);
@@ -97,23 +60,40 @@ export const useEvents = () => {
     return events.filter(event => event.date === dateStr);
   };
 
-  const createEvent = (eventData) => {
-    const newEvent = {
-      ...eventData,
-      id: `event-${Date.now()}`,
-      createdBy: 'user' // Would come from auth in real implementation
-    };
-    setEvents([...events, newEvent]);
+  const createEvent = async (eventData) => {
+    try {
+      const authToken = await getToken();
+      await apiCreateEvent(eventData, authToken);
+      await loadEvents(); // Refresh list
+      return { success: true };
+    } catch (err) {
+      console.error('Error creating event:', err);
+      return { success: false, error: err.message };
+    }
   };
 
-  const updateEvent = (eventId, eventData) => {
-    setEvents(events.map(event =>
-      event.id === eventId ? { ...event, ...eventData } : event
-    ));
+  const updateEvent = async (eventId, eventData) => {
+    try {
+      const authToken = await getToken();
+      await apiUpdateEvent(eventId, eventData, authToken);
+      await loadEvents(); // Refresh list
+      return { success: true };
+    } catch (err) {
+      console.error('Error updating event:', err);
+      return { success: false, error: err.message };
+    }
   };
 
-  const deleteEvent = (eventId) => {
-    setEvents(events.filter(event => event.id !== eventId));
+  const deleteEvent = async (eventId) => {
+    try {
+      const authToken = await getToken();
+      await apiDeleteEvent(eventId, authToken);
+      await loadEvents(); // Refresh list
+      return { success: true };
+    } catch (err) {
+      console.error('Error deleting event:', err);
+      return { success: false, error: err.message };
+    }
   };
 
   const getDaysInMonth = () => {
@@ -156,6 +136,7 @@ export const useEvents = () => {
   };
 
   const formatDate = (date) => {
+    if (!date) return '';
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
@@ -180,6 +161,8 @@ export const useEvents = () => {
 
   return {
     events,
+    isLoading,
+    error,
     currentMonth,
     selectedDate,
     navigateMonth,
@@ -193,7 +176,8 @@ export const useEvents = () => {
     formatDate,
     formatMonthYear,
     isToday,
-    isSelected
+    isSelected,
+    refreshEvents: loadEvents
   };
 };
 

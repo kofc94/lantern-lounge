@@ -20,20 +20,7 @@ resource "aws_dynamodb_table" "calendar_items" {
     type = "S" # String (ISO date format YYYY-MM-DD)
   }
 
-  attribute {
-    name = "isPublic"
-    type = "N" # Number (0 or 1, for GSI)
-  }
-
-  # Global Secondary Index for querying public items by date
-  global_secondary_index {
-    name            = "PublicItemsByDate"
-    hash_key        = "isPublic"
-    range_key       = "date"
-    projection_type = "ALL"
-  }
-
-  # Global Secondary Index for querying all items by date (for authenticated users)
+  # Global Secondary Index for querying all items by date (for all users)
   global_secondary_index {
     name            = "ItemsByDate"
     hash_key        = "date"

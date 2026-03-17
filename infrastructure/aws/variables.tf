@@ -21,3 +21,8 @@ variable "admin_email" {
   type        = string
   default     = "eledonne@gmail.com"
 }
+
+variable "api_gateway_domain" {
+  description = "Domain name of the API Gateway (without https://)"
+  type        = string
+}

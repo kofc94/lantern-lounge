@@ -41,47 +41,50 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="fixed top-0 w-full bg-dark/95 backdrop-blur-sm z-50 shadow-lg">
-      <div className="max-w-7xl mx-auto px-4">
-        <div className="flex justify-between items-center h-20">
+    <nav className="fixed top-0 w-full bg-dark/90 backdrop-blur-md z-50 border-b border-white/5">
+      <div className="container-custom">
+        <div className="flex justify-between items-center h-24">
           {/* Logo and Brand */}
-          <Link to="/" className="flex items-center space-x-4 hover:opacity-80 transition-opacity">
-            <img
-              src="/assets/logo-512.png"
-              alt="Lantern Lounge Logo"
-              className="h-12 w-12 object-contain"
-            />
+          <Link to="/" className="flex items-center space-x-4 group">
+            <div className="relative">
+              <img
+                src="/assets/logo-512.png"
+                alt="Lantern Lounge Logo"
+                className="h-14 w-14 object-contain transition-transform duration-500 group-hover:rotate-12"
+              />
+              <div className="absolute -inset-1 border border-accent-gold/20 rounded-full scale-0 group-hover:scale-110 transition-transform duration-500" />
+            </div>
             <div className="flex flex-col">
-              <span className="text-white text-xl font-display font-bold">
-                The Lantern Lounge
+              <span className="text-white text-2xl font-display font-bold tracking-tight">
+                The <span className="text-accent-gold">Lantern</span> Lounge
               </span>
-              <span className="text-gray-400 text-sm hidden md:block">
-                177 Bedford St, Lexington MA 02420
+              <span className="text-gray-500 text-[10px] uppercase tracking-[0.2em] font-bold hidden md:block">
+                Lexington, Massachusetts
               </span>
             </div>
           </Link>
 
           {/* Desktop Navigation */}
-          <ul className="hidden md:flex items-center space-x-1">
+          <ul className="hidden lg:flex items-center space-x-2">
             {navLinks.map((link) => (
               <li key={link.path}>
                 <Link
                   to={link.path}
                   className={clsx(
-                    'px-4 py-2 rounded-lg transition-all duration-200 font-medium',
+                    'px-5 py-2 rounded-sm transition-all duration-300 font-medium text-sm uppercase tracking-widest',
                     isActive(link.path)
-                      ? 'text-primary bg-primary/10'
-                      : 'text-white hover:text-primary hover:bg-primary/5'
+                      ? 'text-accent-gold bg-accent-gold/10'
+                      : 'text-gray-400 hover:text-white hover:bg-white/5'
                   )}
                 >
                   {link.label}
                 </Link>
               </li>
             ))}
-            <li>
+            <li className="pl-6 ml-6 border-l border-white/10">
               <button
                 onClick={handleAuthButtonClick}
-                className="ml-4 bg-primary hover:bg-primary-hover text-white rounded-full px-6 py-3 font-medium transition-all hover:-translate-y-0.5 shadow-md hover:shadow-lg"
+                className="bg-primary hover:bg-primary-hover text-white rounded-sm px-8 py-3.5 text-sm font-bold uppercase tracking-widest transition-all hover:shadow-[0_0_20px_rgba(178,34,34,0.3)] active:scale-95"
               >
                 {isAuthenticated
                   ? currentUser?.name?.split(' ')[0] || currentUser?.email || 'Account'

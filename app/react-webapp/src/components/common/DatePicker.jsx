@@ -4,7 +4,16 @@ import clsx from 'clsx';
 /**
  * Custom DatePicker with popup calendar
  */
-const DatePicker = ({ label, name, value, onChange, required = false, error, className = '' }) => {
+const DatePicker = ({ 
+  label, 
+  name, 
+  value, 
+  onChange, 
+  required = false, 
+  error, 
+  className = '',
+  theme = 'dark' // 'dark' or 'vintage'
+}) => {
   const [isOpen, setIsOpen] = useState(false);
   const [displayMonth, setDisplayMonth] = useState(value ? new Date(value) : new Date());
   const pickerRef = useRef(null);
@@ -128,9 +137,12 @@ const DatePicker = ({ label, name, value, onChange, required = false, error, cla
   });
 
   return (
-    <div className={clsx('mb-4', className)} ref={pickerRef}>
+    <div className={clsx('mb-6', className)} ref={pickerRef}>
       {label && (
-        <label className="block mb-2 text-white font-medium">
+        <label className={clsx(
+          "block mb-2 font-display font-bold uppercase tracking-widest text-xs",
+          theme === 'dark' ? "text-gray-300" : "text-stone-500"
+        )}>
           {label}
           {required && <span className="text-red-500 ml-1">*</span>}
         </label>
@@ -141,36 +153,51 @@ const DatePicker = ({ label, name, value, onChange, required = false, error, cla
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={clsx(
-          'w-full px-4 py-3 rounded-lg border bg-dark text-white transition-all duration-200 text-left',
-          'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent',
-          error ? 'border-red-500' : 'border-gray-600',
-          'hover:border-gray-500'
+          'w-full px-4 py-3 rounded-sm border transition-all duration-200 text-left',
+          theme === 'dark' 
+            ? 'bg-dark text-white border-gray-600 focus:ring-primary' 
+            : 'bg-white text-neutral-dark border-stone-300 focus:ring-accent-gold/50 focus:border-accent-gold',
+          'focus:outline-none focus:ring-2 focus:border-transparent',
+          error ? 'border-red-500' : '',
+          'hover:border-stone-400'
         )}
       >
         {formatDisplayDate(value)}
       </button>
 
-      {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
+      {error && <p className="mt-2 text-sm text-red-500 font-bold">{error}</p>}
 
       {/* Calendar Popup */}
       {isOpen && (
-        <div className="absolute z-50 mt-2 bg-dark-light border border-gray-700 rounded-lg shadow-2xl p-4 w-80">
+        <div className={clsx(
+          "absolute z-50 mt-2 border shadow-2xl p-4 w-80 rounded-sm",
+          theme === 'dark' ? "bg-dark-light border-gray-700" : "bg-white border-stone-200"
+        )}>
           {/* Month Navigation */}
           <div className="flex items-center justify-between mb-4">
             <button
               type="button"
               onClick={() => navigateMonth(-1)}
-              className="w-8 h-8 flex items-center justify-center bg-dark-card hover:bg-primary text-white rounded transition-colors"
+              className={clsx(
+                "w-8 h-8 flex items-center justify-center rounded transition-colors",
+                theme === 'dark' ? "bg-dark-card hover:bg-primary text-white" : "bg-stone-100 hover:bg-stone-200 text-stone-600"
+              )}
             >
               &lt;
             </button>
-            <h3 className="text-white font-display font-bold">
+            <h3 className={clsx(
+              "font-display font-bold",
+              theme === 'dark' ? "text-white" : "text-neutral-dark"
+            )}>
               {monthYear}
             </h3>
             <button
               type="button"
               onClick={() => navigateMonth(1)}
-              className="w-8 h-8 flex items-center justify-center bg-dark-card hover:bg-primary text-white rounded transition-colors"
+              className={clsx(
+                "w-8 h-8 flex items-center justify-center rounded transition-colors",
+                theme === 'dark' ? "bg-dark-card hover:bg-primary text-white" : "bg-stone-100 hover:bg-stone-200 text-stone-600"
+              )}
             >
               &gt;
             </button>
@@ -179,7 +206,7 @@ const DatePicker = ({ label, name, value, onChange, required = false, error, cla
           {/* Day Headers */}
           <div className="grid grid-cols-7 gap-1 mb-2">
             {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(day => (
-              <div key={day} className="text-center text-gray-400 text-xs font-semibold py-1">
+              <div key={day} className="text-center text-stone-400 text-[10px] font-mono uppercase tracking-widest py-1">
                 {day}
               </div>
             ))}
@@ -199,14 +226,14 @@ const DatePicker = ({ label, name, value, onChange, required = false, error, cla
                   onClick={() => !disabled && handleDateClick(day.date)}
                   disabled={disabled}
                   className={clsx(
-                    'p-2 text-sm rounded transition-all',
+                    'p-2 text-xs font-bold rounded transition-all',
                     day.isCurrentMonth
-                      ? 'text-white hover:bg-dark-card'
-                      : 'text-gray-600',
-                    selected && 'bg-primary hover:bg-primary-hover text-white font-bold',
-                    today && !selected && 'ring-1 ring-primary',
+                      ? (theme === 'dark' ? 'text-white hover:bg-dark-card' : 'text-stone-700 hover:bg-stone-50')
+                      : 'text-stone-300',
+                    selected && (theme === 'dark' ? 'bg-primary text-white' : 'bg-accent-gold text-white'),
+                    today && !selected && (theme === 'dark' ? 'ring-1 ring-primary' : 'ring-1 ring-primary/50'),
                     disabled
-                      ? 'cursor-not-allowed opacity-30 line-through hover:bg-transparent'
+                      ? 'cursor-not-allowed opacity-20 line-through'
                       : 'cursor-pointer'
                   )}
                 >
@@ -227,18 +254,18 @@ const DatePicker = ({ label, name, value, onChange, required = false, error, cla
             }}
             disabled={isDisabled(new Date())}
             className={clsx(
-              'w-full mt-4 px-4 py-2 rounded transition-colors text-sm font-medium',
+              'w-full mt-4 px-4 py-2 rounded transition-colors text-xs font-black uppercase tracking-widest',
               isDisabled(new Date())
-                ? 'bg-dark-card/50 text-gray-500 cursor-not-allowed'
-                : 'bg-dark-card hover:bg-primary text-white'
+                ? 'opacity-20 cursor-not-allowed'
+                : (theme === 'dark' ? 'bg-primary text-white' : 'bg-neutral-dark text-white hover:bg-black')
             )}
           >
             Today
           </button>
 
           {/* Helper Text */}
-          <p className="mt-3 text-xs text-gray-400 text-center">
-            Closed: Saturday, Sunday, Monday
+          <p className="mt-3 text-[10px] text-stone-400 text-center uppercase tracking-tighter">
+            Closed: Sat, Sun, Mon
           </p>
         </div>
       )}

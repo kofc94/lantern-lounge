@@ -22,9 +22,10 @@ Keep the README.md updated after each changes
 lantern-lounge/
 ├── app/                        # Application code
 │   ├── react-webapp/           # React SPA (primary frontend)
-│   ├── lambda/                 # Python Lambda functions (calendar API)
 ├── infrastructure/             # OpenTofu infrastructure modules
 │   ├── aws/                    # Core AWS infra (S3, CloudFront, Route53, ACM)
+│   ├── app/                    # Application infra (Lambda, DynamoDB, API GW)
+│   │   └── lambda/             # Python Lambda source code
 │   ├── authentication/         # Cognito + Google OAuth
 │   └── github/                 # GitHub repo & team management
 ├── ci/                         # Deployment scripts
@@ -73,13 +74,12 @@ npm run build     # production build to dist/
 npm run lint
 ```
 
-### `app/lambda/` — Calendar API (Python)
+### `infrastructure/app/lambda/` — Calendar API (Python)
 
-Python functions deployed as AWS Lambda. Handles CRUD for calendar events via DynamoDB.
+Python functions deployed as AWS Lambda. Handlers live in `api/` and `auth/` subdirectories. OpenTofu packages them automatically.
 
-Files: `get_items.py`, `create_item.py`, `update_item.py`, `delete_item.py`
-
-Package for deployment: `./package.sh` (produces `calendar-api.zip`)
+- **API Handlers**: `get_items.py`, `create_item.py`, `update_item.py`, `delete_item.py`
+- **Auth Handler**: `post_confirmation.py`
 
 ### `app/webapp/` — Legacy site (vanilla HTML/CSS/JS)
 
@@ -103,6 +103,29 @@ cd app/react-webapp && npm run build
 
 ## AWS region & project defaults
 
-- **Region**: `us-east-1`
-- **Project name**: `lantern-lounge`
-- **Environment**: `production`
+---
+
+## Design Context
+
+### Users
+Local residents of Lexington, MA and surrounding areas looking for a community-focused social club. Members use the site to check for events and log in, while prospective members visit to understand the "vibe" and join ($20/year). The context is social, relaxed, and local.
+
+### Brand Personality
+**Welcoming, Warm, Relaxing, Historic.**
+The Lantern Lounge is the "coziest bar & social club" in Lexington. It should feel like a second home—a place to unwind with friends, steeped in local history and tradition.
+
+### Aesthetic Direction
+**Classic, Cozy, & Deep Vintage.**
+Drawing on the heritage of a social club and a classic bar. The aesthetic leans into a rich, atmospheric "Vintage Parchment" style. It should feel like stepping into a dimly lit, high-end tavern or reading an aged, leather-bound ledger.
+
+**Visual Goals:**
+- **Warmth & Age:** Deep sepia tones, tea-stained parchment colors (`#f2eadd`, `#e9dfcc`), and rich burgundy/heritage red (`#8B0000`) for "pop".
+- **Texture:** Heavy use of grain overlays, subtle radial vignettes, and multiply blending to mimic physical materials.
+- **Lighting:** Soft, "lamp-lit" amber and red glows (using large blurred radial gradients) to create depth and atmosphere rather than harsh shadows.
+- **Classic Typography:** `Playfair Display` for bold, impactful headings, paired with uppercase/tracked-out mono and sans-serif fonts for a structured, editorial feel.
+
+### Design Principles
+1. **Atmosphere over Polish:** Prioritize textures (grain, vignettes) and soft, glowing light over flat colors or generic "clean" UI shadows. It should feel physical and lived-in.
+2. **Cozy over Cool:** Visual choices should evoke comfort and history (sepia, dark browns, deep reds) rather than cutting-edge tech (avoid neon, bright whites, pure blacks).
+3. **Structured Hierarchy:** Use classic layout techniques—strong typography contrast, clear borders, and editorial spacing—to organize information.
+4. **Community First:** Highlight the social aspects—events, shared spaces, and the "people" behind the club.
