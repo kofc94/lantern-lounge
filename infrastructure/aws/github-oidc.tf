@@ -124,3 +124,94 @@ resource "aws_iam_role_policy" "github_actions_terraform" {
     ]
   })
 }
+
+# Specific permissions for AWS Organizations, SSO (IAM Identity Center), and Identity Store
+resource "aws_iam_role_policy" "github_actions_terraform_org_sso" {
+  name = "terraform-organizations-sso"
+  role = aws_iam_role.github_actions_terraform.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "OrganizationsManagement"
+        Effect = "Allow"
+        Action = [
+          "organizations:DescribeOrganization",
+          "organizations:ListRoots",
+          "organizations:ListAccounts",
+          "organizations:DescribeAccount",
+          "organizations:CreateAccount",
+          "organizations:UpdateAccount",
+          "organizations:TagResource",
+          "organizations:UntagResource",
+          "organizations:ListTagsForResource",
+          "organizations:EnableAWSServiceAccess",
+          "organizations:DisableAWSServiceAccess",
+          "organizations:ListAWSServiceAccessForOrganization"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "SSOManagement"
+        Effect = "Allow"
+        Action = [
+          "sso:ListInstances",
+          "sso:DescribeInstance",
+          "sso:ListPermissionSets",
+          "sso:DescribePermissionSet",
+          "sso:CreatePermissionSet",
+          "sso:UpdatePermissionSet",
+          "sso:DeletePermissionSet",
+          "sso:ProvisionPermissionSet",
+          "sso:ListAccountAssignments",
+          "sso:CreateAccountAssignment",
+          "sso:DeleteAccountAssignment",
+          "sso:ListManagedPoliciesInPermissionSet",
+          "sso:AttachManagedPolicyToPermissionSet",
+          "sso:DetachManagedPolicyFromPermissionSet",
+          "sso:ListPermissionSetProvisioningStatus",
+          "sso:DescribePermissionSetProvisioningStatus",
+          "sso:TagResource",
+          "sso:UntagResource",
+          "sso:ListTagsForResource"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "IdentityStoreManagement"
+        Effect = "Allow"
+        Action = [
+          "identitystore:ListGroups",
+          "identitystore:DescribeGroup",
+          "identitystore:CreateGroup",
+          "identitystore:DeleteGroup",
+          "identitystore:ListUsers",
+          "identitystore:DescribeUser",
+          "identitystore:CreateUser",
+          "identitystore:DeleteUser",
+          "identitystore:ListGroupMemberships",
+          "identitystore:CreateGroupMembership",
+          "identitystore:DeleteGroupMembership",
+          "identitystore:GetGroupId",
+          "identitystore:GetUserId"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "ServiceLinkedRoles"
+        Effect = "Allow"
+        Action = "iam:CreateServiceLinkedRole"
+        Resource = "*"
+        Condition = {
+          StringEquals = {
+            "iam:AWSServiceName" = [
+              "organizations.amazonaws.com",
+              "sso.amazonaws.com"
+            ]
+          }
+        }
+      }
+    ]
+  })
+}
