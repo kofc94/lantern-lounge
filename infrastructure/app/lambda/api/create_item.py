@@ -37,8 +37,12 @@ def handler(event: LambdaEvent, context: LambdaContext) -> LambdaResponse:
         timestamp: int = int(datetime.now().timestamp() * 1000)  # Milliseconds
 
         # Determine visibility
-        visibility = body.get('visibility', Visibility.PUBLIC.value)
-        if visibility not in [v.value for v in Visibility]:
+        # Non-admins are forced to PUBLIC
+        if user.is_admin:
+            visibility = body.get('visibility', Visibility.PUBLIC.value)
+            if visibility not in [v.value for v in Visibility]:
+                visibility = Visibility.PUBLIC.value
+        else:
             visibility = Visibility.PUBLIC.value
 
         # Create item object

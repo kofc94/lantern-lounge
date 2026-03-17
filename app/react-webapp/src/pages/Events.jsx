@@ -11,7 +11,9 @@ import clsx from 'clsx';
  * Events Page - Event calendar and management (API-based)
  */
 const Events = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, currentUser } = useAuth();
+  const isAdmin = currentUser?.groups?.includes('admin');
+  
   const {
     events,
     isLoading,
@@ -489,6 +491,21 @@ const Events = () => {
             theme="vintage"
           />
 
+          {isAdmin && (
+            <FormGroup
+              label="Visibility"
+              name="visibility"
+              type="select"
+              value={formData.visibility}
+              onChange={(e) => setFormData({ ...formData, visibility: e.target.value })}
+              options={[
+                { label: 'Public - Visible to everyone', value: 'PUBLIC' },
+                { label: 'Private - Members only', value: 'PRIVATE' }
+              ]}
+              theme="vintage"
+            />
+          )}
+
           <FormGroup
             label="Description"
             name="description"
@@ -497,19 +514,6 @@ const Events = () => {
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             placeholder="Enter event description (optional)"
             rows={4}
-            theme="vintage"
-          />
-
-          <FormGroup
-            label="Visibility"
-            name="visibility"
-            type="select"
-            value={formData.visibility}
-            onChange={(e) => setFormData({ ...formData, visibility: e.target.value })}
-            options={[
-              { label: 'Public - Visible to everyone', value: 'PUBLIC' },
-              { label: 'Private - Members only', value: 'PRIVATE' }
-            ]}
             theme="vintage"
           />
 

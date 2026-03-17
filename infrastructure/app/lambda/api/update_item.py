@@ -67,8 +67,10 @@ def handler(event: LambdaEvent, context: LambdaContext) -> LambdaResponse:
         for field in allowed_fields:
             if field in body:
                 value = body[field]
+                
+                # Rule: Only admins can change/set visibility to PRIVATE
                 if field == 'visibility':
-                    if value not in [v.value for v in Visibility]:
+                    if not user.is_admin or value not in [v.value for v in Visibility]:
                         value = Visibility.PUBLIC.value
                 
                 update_expression += f", {field} = :{field}"

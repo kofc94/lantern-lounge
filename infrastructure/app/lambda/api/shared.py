@@ -36,6 +36,7 @@ class CalendarItem:
     timestamp: int
     title: str
     date: str  # YYYY-MM-DD
+    gsipk: str = "EVENT" # Static partition key for GSI range queries
     description: str = ""
     time: str = "" # HH:MM (optional)
     location: str = ""
@@ -52,16 +53,19 @@ class CalendarItem:
     @classmethod
     def from_dict(cls: Type[T], data: Dict[str, Any]) -> T:
         """Create a CalendarItem from a dictionary (e.g. from DynamoDB)."""
-        # Extract only the fields that exist in the dataclass
         from dataclasses import fields
         valid_fields = {f.name for f in fields(cls)}
         filtered_data = {k: v for k, v in data.items() if k in valid_fields}
         return cls(**filtered_data)
 
-def decimal_to_number(obj: Any) -> Union[int, float]:
-    """Helper to convert DynamoDB Decimal to JSON-serializable types."""
+def json_serial(obj: Any) -> Any:
+    """JSON serializer for objects not serializable by default json code."""
     if isinstance(obj, Decimal):
         return int(obj) if obj % 1 == 0 else float(obj)
+    if isinstance(obj, CalendarItem):
+        return obj.to_dict()
+    if isinstance(obj, Enum):
+        return obj.value
     raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
 def get_user_info(event: LambdaEvent) -> UserContext:
@@ -89,16 +93,9 @@ def get_user_info(event: LambdaEvent) -> UserContext:
 
 def create_response(status_code: int, body: Any, authenticated: Optional[bool] = None) -> LambdaResponse:
     """Create a standard API Gateway response."""
-    # Convert objects to dicts if necessary
-    processed_body = body
-    if isinstance(body, CalendarItem):
-        processed_body = body.to_dict()
-    elif isinstance(body, list):
-        processed_body = [item.to_dict() if isinstance(item, CalendarItem) else item for item in body]
-    elif isinstance(body, dict):
-        processed_body = {k: (v.to_dict() if isinstance(v, CalendarItem) else v) for k, v in body.items()}
-        if authenticated is not None:
-            processed_body['authenticated'] = authenticated
+    response_body = body
+    if authenticated is not None and isinstance(body, dict):
+        response_body['authenticated'] = authenticated
 
     return {
         'statusCode': status_code,
@@ -108,5 +105,5 @@ def create_response(status_code: int, body: Any, authenticated: Optional[bool] =
             'Access-Control-Allow-Headers': 'Content-Type,Authorization',
             'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
         },
-        'body': json.dumps(processed_body, default=decimal_to_number)
+        'body': json.dumps(response_body, default=json_serial)
     }

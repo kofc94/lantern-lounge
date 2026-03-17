@@ -31,10 +31,11 @@ def handler(event: LambdaEvent, context: LambdaContext) -> LambdaResponse:
         start_date: str = query_params.get('startDate') or f"{current_year}-{current_month:02d}-01"
         end_date: str = query_params.get('endDate') or f"{current_year}-{current_month:02d}-{last_day:02d}"
 
-        # Query all items in the range (using the ItemsByDate GSI)
+        # Query all items in the range using the refined ItemsByDate GSI
+        # We must filter by the constant GSIPK ("EVENT") to query the range Sort Key (date)
         response = table.query(
             IndexName='ItemsByDate',
-            KeyConditionExpression=Key('date').between(start_date, end_date)
+            KeyConditionExpression=Key('gsipk').eq('EVENT') & Key('date').between(start_date, end_date)
         )
 
         db_items: List[Dict[str, Any]] = response.get('Items', [])
