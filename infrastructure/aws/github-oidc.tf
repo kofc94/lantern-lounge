@@ -148,7 +148,9 @@ resource "aws_iam_role_policy" "github_actions_terraform_org_sso" {
           "organizations:ListTagsForResource",
           "organizations:EnableAWSServiceAccess",
           "organizations:DisableAWSServiceAccess",
-          "organizations:ListAWSServiceAccessForOrganization"
+          "organizations:ListAWSServiceAccessForOrganization",
+          "organizations:ListParents",
+          "organizations:ListChildren"
         ]
         Resource = "*"
       },
