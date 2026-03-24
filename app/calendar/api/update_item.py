@@ -60,8 +60,12 @@ def handler(event: LambdaEvent, context: LambdaContext) -> LambdaResponse:
                 'message': 'You can only update items you created'
             })
 
-        # Build update expression
-        update_expression = "SET updatedAt = :updatedAt"
+        # Build update expression.
+        # ExpressionAttributeNames (#field) are required for any attribute whose
+        # name is a DynamoDB reserved keyword (date, time, location, status, ...).
+        # Using them for every field is simpler than maintaining an allowlist.
+        update_expression = "SET #updatedAt = :updatedAt"
+        expression_names: Dict[str, str] = {'#updatedAt': 'updatedAt'}
         expression_values: Dict[str, Any] = {
             ':updatedAt': int(datetime.now().timestamp() * 1000)
         }
@@ -71,17 +75,18 @@ def handler(event: LambdaEvent, context: LambdaContext) -> LambdaResponse:
         for field in allowed_fields:
             if field in body:
                 value = body[field]
-                
+
                 # Rule: Only admins can change/set visibility to PRIVATE or change status
                 if field == 'visibility':
                     if not user.is_admin or value not in [v.value for v in Visibility]:
                         value = Visibility.PUBLIC.value
-                
+
                 if field == 'status':
                     if not user.is_admin or value not in [v.value for v in Status]:
                         value = existing_item.status # Preserve current status if non-admin tries to change it
-                
-                update_expression += f", {field} = :{field}"
+
+                update_expression += f", #{field} = :{field}"
+                expression_names[f'#{field}'] = field
                 expression_values[f':{field}'] = value
 
         # Update the item
@@ -91,6 +96,7 @@ def handler(event: LambdaEvent, context: LambdaContext) -> LambdaResponse:
                 'timestamp': existing_item.timestamp
             },
             UpdateExpression=update_expression,
+            ExpressionAttributeNames=expression_names,
             ExpressionAttributeValues=expression_values,
             ReturnValues='ALL_NEW'
         )
