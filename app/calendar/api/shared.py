@@ -124,7 +124,8 @@ def get_user_info(event: LambdaEvent) -> UserContext:
     if claims:
         groups = claims.get('cognito:groups', [])
         if isinstance(groups, str):
-            groups = [groups]
+            # API Gateway serializes JWT array claims as space-separated strings
+            groups = groups.split()
 
         return UserContext(
             is_authenticated=True,
