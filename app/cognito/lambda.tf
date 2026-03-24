@@ -8,8 +8,12 @@ data "archive_file" "post_confirmation" {
 
 # ── Post-confirmation Lambda (auto-assigns users to the member group) ──────────
 
-# Data source lookup breaks the circular dependency between the Lambda
-# (which needs the pool ID) and the User Pool (which needs the Lambda ARN).
+# Data source lookup breaks the circular dependency: the User Pool (cognito.tf)
+# references the Lambda ARN via lambda_config, so the Lambda cannot reference the
+# User Pool resource directly without creating a cycle.
+#
+# On a fresh environment the pool doesn't exist yet when this data source runs,
+# so callers must use try() with an appropriate fallback (see below).
 data "aws_cognito_user_pools" "main" {
   name = "${var.project_name}-calendar-users"
 }
@@ -46,7 +50,9 @@ resource "aws_iam_role_policy" "post_confirmation_cognito" {
     Statement = [{
       Effect   = "Allow"
       Action   = "cognito-idp:AdminAddUserToGroup"
-      Resource = tolist(data.aws_cognito_user_pools.main.arns)[0]
+      # Falls back to the resource ARN on first apply when the pool doesn't exist yet.
+      # aws_iam_role_policy → aws_cognito_user_pool is safe (no cycle via this path).
+      Resource = try(tolist(data.aws_cognito_user_pools.main.arns)[0], aws_cognito_user_pool.calendar_users.arn)
     }]
   })
 }
@@ -62,7 +68,11 @@ resource "aws_lambda_function" "post_confirmation" {
 
   environment {
     variables = {
-      USER_POOL_ID = tolist(data.aws_cognito_user_pools.main.ids)[0]
+      # Falls back to "" on first apply (pool not yet created). Cannot use
+      # aws_cognito_user_pool.calendar_users.id here — that would be a cycle since
+      # the User Pool already depends on this Lambda via lambda_config.
+      # A second apply will set the correct value once the pool exists.
+      USER_POOL_ID = try(tolist(data.aws_cognito_user_pools.main.ids)[0], "")
     }
   }
 
@@ -78,5 +88,6 @@ resource "aws_lambda_permission" "cognito_post_confirmation" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.post_confirmation.function_name
   principal     = "cognito-idp.amazonaws.com"
-  source_arn    = tolist(data.aws_cognito_user_pools.main.arns)[0]
+  # Falls back to the resource ARN on first apply — same reasoning as the IAM policy above.
+  source_arn    = try(tolist(data.aws_cognito_user_pools.main.arns)[0], aws_cognito_user_pool.calendar_users.arn)
 }

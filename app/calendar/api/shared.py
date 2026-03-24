@@ -1,8 +1,9 @@
 import json
-import os
+import dataclasses
 from decimal import Decimal
-from typing import Any, Dict, List, Optional, Union, cast, TypedDict, Type, TypeVar
-from dataclasses import dataclass, asdict, field
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional, cast, TypedDict, Type, TypeVar
+from dataclasses import dataclass, asdict
 from enum import Enum
 
 # Type aliases for AWS Lambda
@@ -11,19 +12,23 @@ LambdaContext = Any
 
 T = TypeVar('T', bound='CalendarItem')
 
+
 class Visibility(str, Enum):
     PUBLIC = "PUBLIC"
     PRIVATE = "PRIVATE"
 
+
 class Status(str, Enum):
     PENDING_APPROVAL = "PENDING_APPROVAL"
     APPROVED = "APPROVED"
+
 
 class LambdaResponse(TypedDict):
     """Structured API Gateway response."""
     statusCode: int
     headers: Dict[str, str]
     body: str
+
 
 @dataclass
 class UserContext:
@@ -33,45 +38,81 @@ class UserContext:
     email: Optional[str] = None
     user_id: Optional[str] = None
 
+
 @dataclass
 class CalendarItem:
-    """Represents a Lantern Lounge calendar event."""
+    """Internal domain object — matches DynamoDB storage shape, including GSI keys."""
     id: str
-    timestamp: int
+    date: str               # YYYY-MM-DD
     title: str
-    date: str  # YYYY-MM-DD
-    gsipk: str = "EVENT" # Static partition key for GSI range queries
+    gsipk: str = "EVENT"   # Static GSI partition key — internal, never exposed in responses
     description: str = ""
-    time: str = "" # HH:MM (optional)
-    location: str = ""
     visibility: str = Visibility.PUBLIC.value
     status: str = Status.PENDING_APPROVAL.value
     createdBy: str = "unknown"
     createdByUserId: Optional[str] = None
-    createdAt: Optional[int] = None
-    updatedAt: Optional[int] = None
+    createdAt: Optional[str] = None  # ISO 8601
+    updatedAt: Optional[str] = None  # ISO 8601
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to a DynamoDB-friendly dictionary."""
+        """Serialize for DynamoDB storage (includes gsipk)."""
         return {k: v for k, v in asdict(self).items() if v is not None}
+
+    def to_response(self) -> 'EventResponse':
+        """Return the public-facing DTO, stripping DynamoDB internals."""
+        return EventResponse(
+            id=self.id,
+            date=self.date,
+            title=self.title,
+            description=self.description,
+            visibility=self.visibility,
+            status=self.status,
+            createdBy=self.createdBy,
+            createdByUserId=self.createdByUserId,
+            createdAt=self.createdAt,
+            updatedAt=self.updatedAt,
+        )
 
     @classmethod
     def from_dict(cls: Type[T], data: Dict[str, Any]) -> T:
-        """Create a CalendarItem from a dictionary (e.g. from DynamoDB)."""
-        from dataclasses import fields
-        valid_fields = {f.name for f in fields(cls)}
-        filtered_data = {k: v for k, v in data.items() if k in valid_fields}
-        return cls(**filtered_data)
+        """Hydrate from a DynamoDB item dict."""
+        valid_fields = {f.name for f in dataclasses.fields(cls)}
+        return cls(**{k: v for k, v in data.items() if k in valid_fields})
+
+
+@dataclass
+class EventResponse:
+    """Public API response shape — no DynamoDB internals."""
+    id: str
+    date: str
+    title: str
+    description: str = ""
+    visibility: str = Visibility.PUBLIC.value
+    status: str = Status.PENDING_APPROVAL.value
+    createdBy: str = "unknown"
+    createdByUserId: Optional[str] = None
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {k: v for k, v in asdict(self).items() if v is not None}
+
+
+def now_iso() -> str:
+    """Current UTC time as an ISO 8601 string (e.g. 2026-03-24T15:30:00Z)."""
+    return datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+
 
 def json_serial(obj: Any) -> Any:
-    """JSON serializer for objects not serializable by default json code."""
+    """JSON serializer for types not handled by the default encoder."""
     if isinstance(obj, Decimal):
         return int(obj) if obj % 1 == 0 else float(obj)
-    if isinstance(obj, CalendarItem):
-        return obj.to_dict()
+    if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
+        return {k: v for k, v in dataclasses.asdict(obj).items() if v is not None}
     if isinstance(obj, Enum):
         return obj.value
     raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
+
 
 def get_user_info(event: LambdaEvent) -> UserContext:
     """Extract authentication status and user info from event."""
@@ -83,24 +124,23 @@ def get_user_info(event: LambdaEvent) -> UserContext:
     if claims:
         groups = claims.get('cognito:groups', [])
         if isinstance(groups, str):
-            groups = [groups]
-        
-        is_admin = "admin" in groups
+            # API Gateway serializes JWT array claims as space-separated strings
+            groups = groups.split()
 
         return UserContext(
             is_authenticated=True,
-            is_admin=is_admin,
+            is_admin="admin" in groups,
             email=cast(Optional[str], claims.get('email', 'unknown')),
             user_id=cast(Optional[str], claims.get('sub'))
         )
-    
+
     return UserContext(is_authenticated=False)
+
 
 def create_response(status_code: int, body: Any, authenticated: Optional[bool] = None) -> LambdaResponse:
     """Create a standard API Gateway response."""
-    response_body = body
     if authenticated is not None and isinstance(body, dict):
-        response_body['authenticated'] = authenticated
+        body['authenticated'] = authenticated
 
     return {
         'statusCode': status_code,
@@ -110,5 +150,5 @@ def create_response(status_code: int, body: Any, authenticated: Optional[bool] =
             'Access-Control-Allow-Headers': 'Content-Type,Authorization',
             'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
         },
-        'body': json.dumps(response_body, default=json_serial)
+        'body': json.dumps(body, default=json_serial)
     }

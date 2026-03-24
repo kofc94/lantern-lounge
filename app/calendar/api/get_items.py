@@ -5,9 +5,13 @@ import calendar
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 from boto3.dynamodb.conditions import Key
-from shared import LambdaEvent, LambdaContext, LambdaResponse, get_user_info, create_response, UserContext, Visibility, Status, CalendarItem
+from shared import LambdaEvent, LambdaContext, LambdaResponse, get_user_info, create_response, Visibility, CalendarItem, EventResponse
 
-dynamodb = boto3.resource('dynamodb')
+localstack_hostname = os.environ.get('LOCALSTACK_HOSTNAME')
+if localstack_hostname:
+    dynamodb = boto3.resource('dynamodb', endpoint_url=f'http://{localstack_hostname}:4566')
+else:
+    dynamodb = boto3.resource('dynamodb')
 table_name = os.environ.get('DYNAMODB_TABLE', 'lantern-lounge-calendar-items')
 table = dynamodb.Table(table_name)
 
@@ -39,33 +43,23 @@ def handler(event: LambdaEvent, context: LambdaContext) -> LambdaResponse:
         )
 
         db_items: List[Dict[str, Any]] = response.get('Items', [])
-        transformed_items: List[CalendarItem] = []
+        transformed_items: List[EventResponse] = []
 
         for item_dict in db_items:
             item = CalendarItem.from_dict(item_dict)
-            
-            # Rule 1: Status Filtering
-            # Admins see everything.
-            # Non-admins only see APPROVED items OR items they created themselves.
-  
 
-            # Rule 2: Private Event Transformation
-            # If PRIVATE and (unauthenticated OR not admin), hide details
-            if item.visibility == Visibility.PRIVATE.value:
-                if not user.is_admin:
-                    item.title = "Date unavailable"
-                    item.description = ""
-                    item.location = ""
-                    item.time = ""
+            # Rule 1: Private event — hide details from non-admins
+            if item.visibility == Visibility.PRIVATE.value and not user.is_admin:
+                item.title = "Date unavailable"
+                item.description = ""
 
-            # Rule 3: Unauthenticated User Transformation
-            # Hide creator information for anonymous users
+            # Rule 2: Unauthenticated — hide creator info
             if not user.is_authenticated:
                 item.createdBy = "🤫"
                 item.createdByUserId = None
 
-            transformed_items.append(item)
-        
+            transformed_items.append(item.to_response())
+
         return create_response(200, {
             'items': transformed_items,
             'count': len(transformed_items),

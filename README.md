@@ -31,21 +31,27 @@ lantern-lounge/
 
 ## Local Development & Deployment
 
-Each project in the `app/` directory uses a `Makefile` for a standardized workflow:
+Each project in the `app/` directory uses a `Makefile` for a standardized workflow. You can also use the root `Makefile` to manage everything.
+
+### Standard Workflow
 
 ```bash
-cd app/<project>
-make build     # Prepare the project (install deps/init infra)
-make test      # Run validations (lint/plan)
-make deploy    # Deploy to production
+make build         # Prepare all projects
+make test          # Run tests for all projects
+make deploy        # Deploy all to production
+make local-setup   # Start and configure LocalStack for local dev
 ```
 
-### React app (primary)
+### Local Development (with LocalStack)
 
-```bash
-cd app/react-webapp
-npm run dev       # Start local dev server
-```
+To run the project locally using LocalStack to emulate AWS services:
+
+1. **Start LocalStack**: `docker-compose -f local/docker-compose.yml up -d`
+2. **Setup AWS Resources**: `make local-setup`
+3. **Run React App**: `cd app/react-webapp && npm run dev`
+
+See [local/README.md](./local/README.md) for more details.
+
 
 ## Infrastructure
 

@@ -11,6 +11,10 @@
 *.tfplan.*
 terraform.tfvars
 **/*.tfvars
+*_override.tf
+**/*_override.tf
+*_override.tf.local
+**/*_override.tf.local
 
 # Build Artifacts
 *.zip
