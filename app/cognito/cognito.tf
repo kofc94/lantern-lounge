@@ -97,7 +97,7 @@ resource "aws_cognito_user_pool_client" "calendar_app" {
   # Allowed OAuth flows for public clients
   allowed_oauth_flows_user_pool_client = true
   allowed_oauth_flows                  = ["implicit", "code"]
-  allowed_oauth_scopes                 = ["email", "openid", "profile"]
+  allowed_oauth_scopes                 = ["email", "openid", "profile", "aws.cognito.signin.user.admin"]
 
   # Callback URLs
   callback_urls = [
