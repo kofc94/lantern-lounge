@@ -1,0 +1,41 @@
+name: Auto-Prefill PR Description
+
+on:
+  pull_request:
+    types: [opened, reopened]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  prefill-description:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update PR Body from Last Commit
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const pull_number = context.payload.pull_request.number;
+
+            // Fetch all commits in the Pull Request
+            const { data: commits } = await github.rest.pulls.listCommits({
+              owner,
+              repo,
+              pull_number,
+            });
+
+            if (commits.length > 0) {
+              const lastCommit = commits[commits.length - 1];
+              const message = lastCommit.commit.message;
+
+              // Update the PR description (body) with the commit message
+              await github.rest.pulls.update({
+                owner,
+                repo,
+                pull_number,
+                body: message,
+              });
+              
+              console.log(`Successfully prefilled PR #${pull_number} with the last commit message.`);
+            }
