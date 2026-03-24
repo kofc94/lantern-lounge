@@ -6,7 +6,11 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, cast
 from shared import LambdaEvent, LambdaContext, LambdaResponse, get_user_info, create_response, UserContext, CalendarItem, Visibility, Status
 
-dynamodb = boto3.resource('dynamodb')
+localstack_hostname = os.environ.get('LOCALSTACK_HOSTNAME')
+if localstack_hostname:
+    dynamodb = boto3.resource('dynamodb', endpoint_url=f'http://{localstack_hostname}:4566')
+else:
+    dynamodb = boto3.resource('dynamodb')
 table_name = os.environ.get('DYNAMODB_TABLE', 'lantern-lounge-calendar-items')
 table = dynamodb.Table(table_name)
 

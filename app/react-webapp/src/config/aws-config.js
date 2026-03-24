@@ -1,8 +1,8 @@
 // AWS Cognito and API Configuration
 
 const CONFIG = {
-  // API Gateway endpoint — empty in dev (Vite proxies /calendar/* to mock server)
-  apiEndpoint: import.meta.env.VITE_API_ENDPOINT ?? '',
+  // API Gateway endpoint — default to LocalStack if in development and no env var provided
+  apiEndpoint: import.meta.env.VITE_API_ENDPOINT ?? (import.meta.env.DEV ? 'http://localhost:4566/restapis/local/local/_user_request_' : ''),
 
   // Cognito User Pool Configuration
   cognito: {
