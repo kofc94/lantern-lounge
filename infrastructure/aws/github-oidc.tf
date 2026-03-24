@@ -58,28 +58,21 @@ resource "aws_iam_role_policy_attachment" "github_actions_terraform" {
   policy_arn = each.value
 }
 
-# Inline policy for S3 (state + website buckets) and IAM (Lambda role management)
+# Inline policy for all Terraform-managed resources (S3, IAM, Organizations, SSO)
 resource "aws_iam_role_policy" "github_actions_terraform" {
-  name = "terraform-s3-iam"
+  name = "terraform-management-policy"
   role = aws_iam_role.github_actions_terraform.id
 
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "TerraformState"
+        Sid    = "StateAndWebsiteBuckets"
         Effect = "Allow"
-        Action = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject", "s3:ListBucket"]
+        Action = "s3:*"
         Resource = [
           "arn:aws:s3:::lanternlounge-tfstate",
           "arn:aws:s3:::lanternlounge-tfstate/*",
-        ]
-      },
-      {
-        Sid    = "WebsiteBuckets"
-        Effect = "Allow"
-        Action = ["s3:*"]
-        Resource = [
           "arn:aws:s3:::www.lanternlounge.org",
           "arn:aws:s3:::www.lanternlounge.org/*",
           "arn:aws:s3:::lanternlounge.org",
@@ -87,118 +80,29 @@ resource "aws_iam_role_policy" "github_actions_terraform" {
         ]
       },
       {
-        Sid    = "IAMForLambdaRoles"
+        Sid    = "IAMManagement"
         Effect = "Allow"
         Action = [
-          "iam:CreateRole",
-          "iam:DeleteRole",
-          "iam:GetRole",
-          "iam:UpdateRole",
-          "iam:ListRoles",
-          "iam:TagRole",
-          "iam:UntagRole",
-          "iam:PutRolePolicy",
-          "iam:GetRolePolicy",
-          "iam:DeleteRolePolicy",
-          "iam:ListRolePolicies",
-          "iam:AttachRolePolicy",
-          "iam:DetachRolePolicy",
-          "iam:ListAttachedRolePolicies",
-          "iam:PassRole",
+          "iam:*Role*",
+          "iam:*Policy*",
+          "iam:*OpenIDConnectProvider*",
+          "iam:PassRole"
         ]
         Resource = "*"
       },
-      {
-        Sid    = "OIDCProvider"
-        Effect = "Allow"
-        Action = [
-          "iam:GetOpenIDConnectProvider",
-          "iam:CreateOpenIDConnectProvider",
-          "iam:DeleteOpenIDConnectProvider",
-          "iam:UpdateOpenIDConnectProviderThumbprint",
-          "iam:TagOpenIDConnectProvider",
-          "iam:ListOpenIDConnectProviderTags",
-        ]
-        Resource = "*"
-      },
-    ]
-  })
-}
-
-# Specific permissions for AWS Organizations, SSO (IAM Identity Center), and Identity Store
-resource "aws_iam_role_policy" "github_actions_terraform_org_sso" {
-  name = "terraform-organizations-sso"
-  role = aws_iam_role.github_actions_terraform.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
       {
         Sid    = "OrganizationsManagement"
         Effect = "Allow"
-        Action = [
-          "organizations:DescribeOrganization",
-          "organizations:ListRoots",
-          "organizations:ListAccounts",
-          "organizations:DescribeAccount",
-          "organizations:CreateAccount",
-          "organizations:UpdateAccount",
-          "organizations:TagResource",
-          "organizations:UntagResource",
-          "organizations:ListTagsForResource",
-          "organizations:EnableAWSServiceAccess",
-          "organizations:DisableAWSServiceAccess",
-          "organizations:ListAWSServiceAccessForOrganization",
-          "organizations:ListParents",
-          "organizations:ListChildren"
-        ]
+        Action = "organizations:*"
         Resource = "*"
       },
       {
-        Sid    = "SSOManagement"
+        Sid    = "SSOAndIdentityStore"
         Effect = "Allow"
         Action = [
-          "sso:ListInstances",
-          "sso:DescribeInstance",
-          "sso:ListPermissionSets",
-          "sso:DescribePermissionSet",
-          "sso:CreatePermissionSet",
-          "sso:UpdatePermissionSet",
-          "sso:DeletePermissionSet",
-          "sso:ProvisionPermissionSet",
-          "sso:ListAccountAssignments",
-          "sso:CreateAccountAssignment",
-          "sso:DeleteAccountAssignment",
-          "sso:ListManagedPoliciesInPermissionSet",
-          "sso:AttachManagedPolicyToPermissionSet",
-          "sso:DetachManagedPolicyFromPermissionSet",
-          "sso:ListPermissionSetProvisioningStatus",
-          "sso:DescribePermissionSetProvisioningStatus",
-          "sso:TagResource",
-          "sso:UntagResource",
-          "sso:ListTagsForResource"
-        ]
-        Resource = "*"
-      },
-      {
-        Sid    = "IdentityStoreManagement"
-        Effect = "Allow"
-        Action = [
-          "identitystore:ListGroups",
-          "identitystore:DescribeGroup",
-          "identitystore:CreateGroup",
-          "identitystore:DeleteGroup",
-          "identitystore:ListUsers",
-          "identitystore:DescribeUser",
-          "identitystore:CreateUser",
-          "identitystore:DeleteUser",
-          "identitystore:ListGroupMemberships",
-          "identitystore:DescribeGroupMembership",
-          "identitystore:CreateGroupMembership",
-          "identitystore:DeleteGroupMembership",
-          "identitystore:GetGroupId",
-          "identitystore:GetUserId",
-          "identitystore:IsMemberInGroups"
+          "sso:*",
+          "sso-directory:*",
+          "identitystore:*"
         ]
         Resource = "*"
       },

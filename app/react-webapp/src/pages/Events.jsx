@@ -43,7 +43,8 @@ const Events = () => {
     title: '',
     date: '',
     description: '',
-    visibility: 'PUBLIC'
+    visibility: 'PUBLIC',
+    status: 'APPROVED'
   });
 
   const handleDayClick = (day) => {
@@ -85,7 +86,8 @@ const Events = () => {
         title: '',
         date: formatDate(day.date),
         description: '',
-        visibility: 'PUBLIC'
+        visibility: 'PUBLIC',
+        status: isAdmin ? 'APPROVED' : 'PENDING_APPROVAL'
       });
       setSubmitError(null);
       setIsEventModalOpen(true);
@@ -98,7 +100,8 @@ const Events = () => {
       title: '',
       date: selectedDate ? formatDate(selectedDate) : '',
       description: '',
-      visibility: 'PUBLIC'
+      visibility: 'PUBLIC',
+      status: isAdmin ? 'APPROVED' : 'PENDING_APPROVAL'
     });
     setSubmitError(null);
     setIsEventModalOpen(true);
@@ -110,7 +113,8 @@ const Events = () => {
       title: event.title,
       date: event.date,
       description: event.description,
-      visibility: event.visibility || 'PUBLIC'
+      visibility: event.visibility || 'PUBLIC',
+      status: event.status || 'APPROVED'
     });
     setSubmitError(null);
     setIsEventModalOpen(true);
@@ -120,6 +124,17 @@ const Events = () => {
   const handleViewEvent = (event) => {
     setViewingEvent(event);
     setIsViewModalOpen(true);
+  };
+
+  const handleApproveEvent = async (event) => {
+    setIsSubmitting(true);
+    const result = await updateEvent(event.id, { ...event, status: 'APPROVED' });
+    if (result.success) {
+      setIsViewModalOpen(false);
+    } else {
+      setSubmitError(result.error || 'Failed to approve event');
+    }
+    setIsSubmitting(false);
   };
 
   const handleSubmit = async (e) => {
@@ -338,9 +353,17 @@ const Events = () => {
                         {dayEvents.slice(0, 2).map((event, i) => (
                           <div
                             key={i}
-                            className="text-[10px] leading-tight bg-[#8B0000] text-[#fdf9f2] border-l-2 border-[#2d241e]/30 px-2 py-2 font-black truncate shadow-md transform group-hover/day:translate-x-1 transition-transform"
-                            title={event.title}
+                            className={clsx(
+                              "text-[10px] leading-tight border-l-2 px-2 py-2 font-black truncate shadow-md transform group-hover/day:translate-x-1 transition-transform",
+                              event.status === 'PENDING_APPROVAL' 
+                                ? "bg-amber-500 text-neutral-dark border-amber-700/30" 
+                                : "bg-[#8B0000] text-[#fdf9f2] border-[#2d241e]/30"
+                            )}
+                            title={`${event.title}${event.status === 'PENDING_APPROVAL' ? ' (Approval pending)' : ''}`}
                           >
+                            {event.status === 'PENDING_APPROVAL' && (
+                              <span className="mr-1" title="Approval pending">⏳</span>
+                            )}
                             {event.title.toUpperCase()}
                           </div>
                         ))}
@@ -383,7 +406,19 @@ const Events = () => {
                   >
                     <div className="flex justify-between items-start">
                       <div>
-                        <span className="text-accent-gold font-mono text-xs uppercase tracking-[0.2em] mb-3 block">Featured Event</span>
+                        <div className="flex items-center gap-3 mb-3">
+                          <span className="text-accent-gold font-mono text-xs uppercase tracking-[0.2em] block">
+                            {event.visibility === 'PRIVATE' ? 'Members Only' : 'Featured Event'}
+                          </span>
+                          {event.status === 'PENDING_APPROVAL' && (
+                            <span 
+                              className="bg-amber-500/10 text-amber-500 border border-amber-500/30 font-mono text-[10px] uppercase tracking-widest px-2 py-0.5 rounded-sm flex items-center gap-1.5 shadow-inner"
+                              title="Approval pending"
+                            >
+                              <span className="text-sm">⏳</span> Approval pending
+                            </span>
+                          )}
+                        </div>
                         <h4 className="text-3xl font-display font-bold text-white mb-4 group-hover:text-accent-gold transition-colors">
                           {event.title}
                         </h4>
@@ -405,7 +440,6 @@ const Events = () => {
         )}
       </div>
 
-      {/* View Event Modal */}
       <Modal
         isOpen={isViewModalOpen}
         onClose={() => setIsViewModalOpen(false)}
@@ -415,9 +449,19 @@ const Events = () => {
       >
         <div className="relative z-10">
           <div className="mb-8 border-b border-stone-200 pb-6">
-            <h3 className="text-4xl font-display font-black text-neutral-dark mb-2 tracking-tight">
-              {viewingEvent?.title}
-            </h3>
+            <div className="flex items-center gap-3 mb-2">
+              <h3 className="text-4xl font-display font-black text-neutral-dark tracking-tight">
+                {viewingEvent?.title}
+              </h3>
+              {viewingEvent?.status === 'PENDING_APPROVAL' && (
+                <span 
+                  className="bg-amber-500 text-neutral-dark text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-sm shadow-sm flex items-center gap-1.5"
+                  title="Approval pending"
+                >
+                  <span className="text-sm">⏳</span> Approval pending
+                </span>
+              )}
+            </div>
             <div className="text-primary font-bold italic">
               {viewingEvent && new Date(viewingEvent.date + 'T00:00:00').toLocaleDateString('en-US', { 
                 weekday: 'long', 
@@ -434,23 +478,37 @@ const Events = () => {
             </p>
           </div>
 
-          <div className="flex gap-4 border-t border-stone-200 pt-8 mt-8">
-            <Button
-              variant="outline"
-              fullWidth
-              onClick={() => setIsViewModalOpen(false)}
-              className="!border-stone-300 !text-stone-600 hover:!bg-stone-50"
-            >
-              Close
-            </Button>
-            {isAuthenticated && (
+          <div className="flex flex-col gap-3 border-t border-stone-200 pt-8 mt-8">
+            <div className="flex gap-4">
+              <Button
+                variant="outline"
+                fullWidth
+                onClick={() => setIsViewModalOpen(false)}
+                className="!border-stone-300 !text-stone-600 hover:!bg-stone-50"
+              >
+                Close
+              </Button>
+              {isAuthenticated && (isAdmin || viewingEvent?.createdByUserId === currentUser?.sub) && (
+                <Button
+                  variant="primary"
+                  fullWidth
+                  onClick={() => handleEditEvent(viewingEvent)}
+                  className="!bg-neutral-dark !text-white"
+                >
+                  Edit Event
+                </Button>
+              )}
+            </div>
+            
+            {isAdmin && viewingEvent?.status === 'PENDING_APPROVAL' && (
               <Button
                 variant="primary"
                 fullWidth
-                onClick={() => handleEditEvent(viewingEvent)}
-                className="!bg-neutral-dark !text-white"
+                onClick={() => handleApproveEvent(viewingEvent)}
+                className="!bg-green-700 hover:!bg-green-800 !text-white !border-none"
+                disabled={isSubmitting}
               >
-                Edit Event
+                {isSubmitting ? 'Approving...' : 'Approve Event'}
               </Button>
             )}
           </div>
@@ -491,20 +549,37 @@ const Events = () => {
             theme="vintage"
           />
 
-          {isAdmin && (
-            <FormGroup
-              label="Visibility"
-              name="visibility"
-              type="select"
-              value={formData.visibility}
-              onChange={(e) => setFormData({ ...formData, visibility: e.target.value })}
-              options={[
-                { label: 'Public - Visible to everyone', value: 'PUBLIC' },
-                { label: 'Private - Members only', value: 'PRIVATE' }
-              ]}
-              theme="vintage"
-            />
-          )}
+          <div className="grid grid-cols-2 gap-4">
+            {isAdmin && (
+              <FormGroup
+                label="Visibility"
+                name="visibility"
+                type="select"
+                value={formData.visibility}
+                onChange={(e) => setFormData({ ...formData, visibility: e.target.value })}
+                options={[
+                  { label: 'Public', value: 'PUBLIC' },
+                  { label: 'Private', value: 'PRIVATE' }
+                ]}
+                theme="vintage"
+              />
+            )}
+            
+            {isAdmin && (
+              <FormGroup
+                label="Status"
+                name="status"
+                type="select"
+                value={formData.status}
+                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                options={[
+                  { label: 'Pending', value: 'PENDING_APPROVAL' },
+                  { label: 'Approved', value: 'APPROVED' }
+                ]}
+                theme="vintage"
+              />
+            )}
+          </div>
 
           <FormGroup
             label="Description"
@@ -527,7 +602,7 @@ const Events = () => {
             >
               {isSubmitting ? 'Processing...' : (editingEvent ? 'Update Event' : 'Create Event')}
             </Button>
-            {editingEvent && (
+            {editingEvent && (isAdmin || editingEvent?.createdByUserId === currentUser?.sub) && (
               <Button 
                 type="button" 
                 variant="danger" 

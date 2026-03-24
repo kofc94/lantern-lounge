@@ -15,6 +15,10 @@ class Visibility(str, Enum):
     PUBLIC = "PUBLIC"
     PRIVATE = "PRIVATE"
 
+class Status(str, Enum):
+    PENDING_APPROVAL = "PENDING_APPROVAL"
+    APPROVED = "APPROVED"
+
 class LambdaResponse(TypedDict):
     """Structured API Gateway response."""
     statusCode: int
@@ -41,6 +45,7 @@ class CalendarItem:
     time: str = "" # HH:MM (optional)
     location: str = ""
     visibility: str = Visibility.PUBLIC.value
+    status: str = Status.PENDING_APPROVAL.value
     createdBy: str = "unknown"
     createdByUserId: Optional[str] = None
     createdAt: Optional[int] = None

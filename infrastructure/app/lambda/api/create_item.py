@@ -4,7 +4,7 @@ import boto3
 import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional, cast
-from shared import LambdaEvent, LambdaContext, LambdaResponse, get_user_info, create_response, UserContext, CalendarItem, Visibility
+from shared import LambdaEvent, LambdaContext, LambdaResponse, get_user_info, create_response, UserContext, CalendarItem, Visibility, Status
 
 dynamodb = boto3.resource('dynamodb')
 table_name = os.environ.get('DYNAMODB_TABLE', 'lantern-lounge-calendar-items')
@@ -36,14 +36,17 @@ def handler(event: LambdaEvent, context: LambdaContext) -> LambdaResponse:
         item_id: str = str(uuid.uuid4())
         timestamp: int = int(datetime.now().timestamp() * 1000)  # Milliseconds
 
-        # Determine visibility
-        # Non-admins are forced to PUBLIC
+        # Determine visibility and status
         if user.is_admin:
+            # Admins can set visibility and are auto-approved
             visibility = body.get('visibility', Visibility.PUBLIC.value)
             if visibility not in [v.value for v in Visibility]:
                 visibility = Visibility.PUBLIC.value
+            status = Status.APPROVED.value
         else:
+            # Non-admins are forced to PUBLIC and PENDING_APPROVAL
             visibility = Visibility.PUBLIC.value
+            status = Status.PENDING_APPROVAL.value
 
         # Create item object
         item = CalendarItem(
@@ -55,6 +58,7 @@ def handler(event: LambdaEvent, context: LambdaContext) -> LambdaResponse:
             time=body.get('time', ''),
             location=body.get('location', ''),
             visibility=visibility,
+            status=status,
             createdBy=user.email or "unknown",
             createdByUserId=user.user_id,
             createdAt=timestamp,
