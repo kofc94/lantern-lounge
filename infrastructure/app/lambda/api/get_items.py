@@ -5,7 +5,7 @@ import calendar
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 from boto3.dynamodb.conditions import Key
-from shared import LambdaEvent, LambdaContext, LambdaResponse, get_user_info, create_response, UserContext, Visibility, CalendarItem
+from shared import LambdaEvent, LambdaContext, LambdaResponse, get_user_info, create_response, UserContext, Visibility, Status, CalendarItem
 
 dynamodb = boto3.resource('dynamodb')
 table_name = os.environ.get('DYNAMODB_TABLE', 'lantern-lounge-calendar-items')
@@ -44,16 +44,21 @@ def handler(event: LambdaEvent, context: LambdaContext) -> LambdaResponse:
         for item_dict in db_items:
             item = CalendarItem.from_dict(item_dict)
             
-            # Rule 1: Private Event Transformation
+            # Rule 1: Status Filtering
+            # Admins see everything.
+            # Non-admins only see APPROVED items OR items they created themselves.
+  
+
+            # Rule 2: Private Event Transformation
             # If PRIVATE and (unauthenticated OR not admin), hide details
             if item.visibility == Visibility.PRIVATE.value:
-                if not user.is_authenticated or not user.is_admin:
+                if not user.is_admin:
                     item.title = "Date unavailable"
                     item.description = ""
                     item.location = ""
                     item.time = ""
 
-            # Rule 2: Unauthenticated User Transformation
+            # Rule 3: Unauthenticated User Transformation
             # Hide creator information for anonymous users
             if not user.is_authenticated:
                 item.createdBy = "🤫"

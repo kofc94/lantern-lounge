@@ -44,8 +44,8 @@ def handler(event: LambdaEvent, context: LambdaContext) -> LambdaResponse:
 
         existing_item = items[0]
 
-        # Verify ownership
-        if existing_item.get('createdByUserId') != user.user_id:
+        # Verify ownership (Admins can delete anything)
+        if not user.is_admin and existing_item.get('createdByUserId') != user.user_id:
             return create_response(403, {
                 'error': 'Forbidden',
                 'message': 'You can only delete items you created'

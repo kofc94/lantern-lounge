@@ -4,7 +4,7 @@ import boto3
 from datetime import datetime
 from typing import Any, Dict, List, Optional, cast
 from boto3.dynamodb.conditions import Key
-from shared import LambdaEvent, LambdaContext, LambdaResponse, get_user_info, create_response, UserContext, Visibility, CalendarItem
+from shared import LambdaEvent, LambdaContext, LambdaResponse, get_user_info, create_response, UserContext, Visibility, Status, CalendarItem
 
 dynamodb = boto3.resource('dynamodb')
 table_name = os.environ.get('DYNAMODB_TABLE', 'lantern-lounge-calendar-items')
@@ -49,8 +49,8 @@ def handler(event: LambdaEvent, context: LambdaContext) -> LambdaResponse:
         # Use CalendarItem for consistency
         existing_item = CalendarItem.from_dict(db_items[0])
 
-        # Verify ownership
-        if existing_item.createdByUserId != user.user_id:
+        # Verify ownership (Admins can update anything)
+        if not user.is_admin and existing_item.createdByUserId != user.user_id:
             return create_response(403, {
                 'error': 'Forbidden',
                 'message': 'You can only update items you created'
@@ -63,15 +63,19 @@ def handler(event: LambdaEvent, context: LambdaContext) -> LambdaResponse:
         }
 
         # Update allowed fields
-        allowed_fields = ['title', 'description', 'date', 'time', 'location', 'visibility']
+        allowed_fields = ['title', 'description', 'date', 'time', 'location', 'visibility', 'status']
         for field in allowed_fields:
             if field in body:
                 value = body[field]
                 
-                # Rule: Only admins can change/set visibility to PRIVATE
+                # Rule: Only admins can change/set visibility to PRIVATE or change status
                 if field == 'visibility':
                     if not user.is_admin or value not in [v.value for v in Visibility]:
                         value = Visibility.PUBLIC.value
+                
+                if field == 'status':
+                    if not user.is_admin or value not in [v.value for v in Status]:
+                        value = existing_item.status # Preserve current status if non-admin tries to change it
                 
                 update_expression += f", {field} = :{field}"
                 expression_values[f':{field}'] = value
