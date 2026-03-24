@@ -40,6 +40,8 @@ lantern-lounge/
 │   ├── aws/                    # Core AWS infra (S3, CloudFront, Route53, ACM)
 │   ├── google/                 # Google Cloud project & IdP bootstrap
 │   └── github/                 # GitHub repo & team management
+├── .agents/                    # AI Agent skills and guidelines
+├── skills-lock.json            # Lock file for AI Agent skills
 ├── ci/                         # Shared deployment scripts
 └── artifacts/                  # Build artifacts
 ```
