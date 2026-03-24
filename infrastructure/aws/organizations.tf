@@ -1,19 +1,3 @@
-# AWS Organizations — manages the root organization and member accounts
-#
-# IMPORT REQUIRED: The organization already exists. Before running `tofu apply`,
-# import it with:
-#
-#   tofu import aws_organizations_organization.main r-xxxx
-#
-# Replace r-xxxx with your organization root ID. Find it with:
-#   aws organizations list-roots --query 'Roots[0].Id' --output text
-#
-# Or use the import block below (uncomment and fill in the id):
-#
-# import {
-#   to = aws_organizations_organization.main
-#   id = "r-xxxx"
-# }
 
 resource "aws_organizations_organization" "main" {
   # Enable IAM Identity Center (SSO) and CloudTrail to work across the org

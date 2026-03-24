@@ -9,7 +9,7 @@ terraform {
 
   backend "s3" {
     bucket = "lanternlounge-tfstate"
-    key    = "app/terraform.tfstate"
+    key    = "authentication/terraform.tfstate"
     region = "us-east-1"
   }
 }

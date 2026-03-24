@@ -1,16 +1,22 @@
 # Infrastructure (Terraform/OpenTofu)
-infrastructure/.terraform/
-infrastructure/.terraform.lock.hcl
-infrastructure/terraform.tfstate
-infrastructure/terraform.tfstate.backup
-infrastructure/terraform.tfvars
+.terraform/
+**/.terraform/
+.terraform.lock.hcl
+**/.terraform.lock.hcl
+*.lock.hcl
+**/*.lock.hcl
 *.tfstate
 *.tfstate.*
 *.tfplan
 *.tfplan.*
+terraform.tfvars
+**/*.tfvars
 
-infrastructure/*/.terraform
-infrastructure/*/.terraform.lock.hcl
+# Build Artifacts
+*.zip
+**/*.zip
+dist/
+**/dist/
 # OS generated files
 .DS_Store
 .DS_Store?

@@ -30,8 +30,8 @@ resource "aws_apigatewayv2_authorizer" "cognito" {
   name             = "cognito-authorizer"
 
   jwt_configuration {
-    audience = [aws_cognito_user_pool_client.calendar_app.id]
-    issuer   = "https://cognito-idp.${var.aws_region}.amazonaws.com/${aws_cognito_user_pool.calendar_users.id}"
+    audience = [data.terraform_remote_state.cognito.outputs.cognito_user_pool_client_id]
+    issuer   = "https://cognito-idp.${var.aws_region}.amazonaws.com/${data.terraform_remote_state.cognito.outputs.cognito_user_pool_id}"
   }
 }
 

@@ -13,10 +13,11 @@ All modules share a remote state backend in S3:
 
 | Module | Path | What it manages |
 |---|---|---|
-| AWS | `aws/` | S3, CloudFront, Route53, ACM, GitHub OIDC IAM |
-| App | `app/` | Cognito, Lambda, DynamoDB, API Gateway, Google IdP |
-| Google | `google/` | Google Cloud project, IAP brand, CI service account |
-| GitHub | `github/` | Repo settings, teams, branch protection |
+| AWS Core | `aws/` | S3, CloudFront, Route53, ACM, GitHub OIDC IAM |
+| Cognito | `../app/cognito/` | Cognito User Pool, Google IdP, Post-confirmation Lambda |
+| Calendar | `../app/calendar/` | DynamoDB, API Gateway, Lambda functions |
+| Google Bootstrap | `google/` | Google Cloud project, IAP brand, CI service account |
+| GitHub | `github/` | Repo settings, teams, branch protection, CI secrets |
 
 ---
 
@@ -27,232 +28,69 @@ All modules share a remote state backend in S3:
 All modules require AWS credentials with sufficient permissions (IAM, S3, CloudFront, Route53, ACM, Cognito, SSM).
 
 ```bash
-export AWS_ACCESS_KEY_ID=...
-export AWS_SECRET_ACCESS_KEY=...
-export AWS_DEFAULT_REGION=us-east-1
-```
-
-Or use an AWS profile:
-
-```bash
 export AWS_PROFILE=lantern-lounge
 ```
 
-### 2. Google credentials (authentication module only)
+### 2. Google credentials
 
-The `authentication` module needs Application Default Credentials to manage Google Cloud resources:
+The `app/cognito` module needs Application Default Credentials to manage Google Cloud resources:
 
 ```bash
 gcloud auth application-default login
 ```
 
-The Google OAuth Client ID and Secret are stored in **AWS SSM Parameter Store**. Store them once after creating an OAuth 2.0 client in [Google Cloud Console](https://console.cloud.google.com/) under **APIs & Services → Credentials**:
+The Google OAuth Client ID and Secret are stored in **AWS SSM Parameter Store**:
 
 ```bash
-aws ssm put-parameter \
-  --name /lantern-lounge/google/client-id \
-  --value "YOUR_GOOGLE_CLIENT_ID" \
-  --type String
-
-aws ssm put-parameter \
-  --name /lantern-lounge/google/client-secret \
-  --value "YOUR_GOOGLE_CLIENT_SECRET" \
-  --type SecureString
-```
-
-### 3. GitHub token (github module only)
-
-The `github` module manages GitHub resources and requires a Personal Access Token with **`repo`** and **`admin:org`** scopes.
-
-```bash
-export GITHUB_TOKEN=ghp_...
+aws ssm put-parameter --name /lantern-lounge/google/client-id --value "YOUR_CLIENT_ID" --type String
+aws ssm put-parameter --name /lantern-lounge/google/client-secret --value "YOUR_CLIENT_SECRET" --type SecureString
 ```
 
 ---
 
 ## Running locally
 
-```bash
-cd infrastructure/<module>
-tofu init
-tofu plan
-tofu apply
-```
-
-### First-time initialisation
-
-If no prior state exists, each module can be initialised and applied independently:
+Every project in the `app/` directory and module in `infrastructure/` can be managed via `make`:
 
 ```bash
-# 1. Core AWS infrastructure
-cd infrastructure/aws && tofu init && tofu apply
-
-# 2. Authentication (requires SSM params from step above)
-cd infrastructure/authentication && tofu init && tofu apply
-
-# 3. GitHub settings
-cd infrastructure/github && tofu init && tofu apply
+cd <path-to-module>
+make build     # tofu init
+make test      # tofu plan
+make deploy    # tofu apply
 ```
 
-### Importing existing resources
+### Bootstrap sequence (one-time setup)
 
-If resources already exist in AWS and were not created by Tofu, import them before applying:
-
-```bash
-# Example: import an existing Cognito App Client
-tofu import aws_cognito_user_pool_client.app <user_pool_id>/<app_client_id>
-```
+1. **AWS Core**: `cd infrastructure/aws && make deploy`
+2. **Google Bootstrap**: `cd infrastructure/google && make deploy`
+3. **Cognito**: `cd app/cognito && make deploy`
+4. **Calendar API**: `cd app/calendar && make deploy`
+5. **GitHub**: `cd infrastructure/github && make deploy`
 
 ---
 
 ## CI/CD (GitHub Actions)
 
-Two workflows automate plan and apply on every infrastructure change. AWS authentication uses **OIDC** — no long-lived AWS keys are stored in GitHub.
-
-### How it works
-
-| Event | Workflow | Action |
-|---|---|---|
-| Pull request touching `infrastructure/**` | `tofu-plan.yml` | Runs `tofu plan` for each changed module, posts output as a PR comment, blocks merge on error |
-| Merge to `main` touching `infrastructure/**` | `tofu-apply.yml` | Runs `tofu apply` for each changed module |
-
-### Bootstrap (one-time setup)
-
-CI/CD requires a one-time local bootstrap before it can manage itself.
-
-**Step 1 — Apply the `aws` module locally** to create the OIDC provider and IAM role:
-
-```bash
-cd infrastructure/aws
-tofu init && tofu apply
-```
-
-> If a GitHub OIDC provider already exists in your AWS account, import it first:
-> ```bash
-> tofu import aws_iam_openid_connect_provider.github \
->   arn:aws:iam::ACCOUNT_ID:oidc-provider/token.actions.githubusercontent.com
-> ```
-
-**Step 2 — Set `GH_TOFU_TOKEN` manually** — this is the only secret that cannot be automated, as it bootstraps the GitHub provider itself:
-
-1. Click your **profile picture** (top right) → **Settings**
-2. Scroll to the bottom of the left sidebar → **Developer settings → Personal access tokens → Tokens (classic)**
-3. **Generate new token (classic)** with **`repo`** and **`admin:org`** scopes
-4. Go to the repo → **Settings → Secrets and variables → Actions → New repository secret**
-5. Name: `GH_TOFU_TOKEN`, value: the token
-
-**Step 3 — Apply the `google` module locally** to create the Google service account, generate its key, and store it in SSM:
-
-```bash
-cd infrastructure/google
-tofu init && tofu apply
-```
-
-**Step 4 — Apply the `app` module locally** to set up Cognito, Lambda, DynamoDB, and API Gateway:
-
-```bash
-cd infrastructure/app
-tofu init && tofu apply
-```
-
-**Step 5 — Apply the `github` module locally** to push the remaining secrets/variables to GitHub Actions from their sources (AWS state + SSM):
-
-```bash
-cd infrastructure/github
-tofu init && tofu apply
-```
-
-After this, all subsequent infrastructure changes can be made via PRs — no local credentials needed.
+Two workflows automate plan and apply. AWS authentication uses **OIDC**.
 
 ### GitHub Actions secrets and variables
 
-All are managed by Terraform after bootstrap — **do not set these manually**:
+All are managed by Tofu in `infrastructure/github/` — **do not set these manually** except for the initial `GH_TOFU_TOKEN`.
 
 | Type | Name | Managed by | Source |
 |---|---|---|---|
 | Variable | `AWS_ROLE_ARN` | `github` module | AWS Terraform state |
 | Secret | `GOOGLE_CREDENTIALS` | `github` module | AWS SSM |
-
-The one manually managed secret:
-
-| Type | Name | How to set |
-|---|---|---|
-| Secret | `GH_TOFU_TOKEN` | Manually — see bootstrap step 2 above |
-
-### Blocking merge on plan failure
-
-To enforce that a failed `tofu plan` blocks a PR from merging, add these as **required status checks** in branch protection (**Settings → Branches → main**):
-
-- `Plan / aws`
-- `Plan / app`
-- `Plan / google`
-- `Plan / github`
-
----
-
-## User management
-
-### How group membership works
-
-All authenticated users are automatically assigned to the `member` group by a Post Confirmation Lambda trigger that fires on every new sign-in. No manual action is needed for regular members.
-
-The `admin` group is managed explicitly via Tofu in `infrastructure/aws/cognito.tf`.
-
-### How to create an admin
-
-Admins must have signed in at least once (so their account exists in Cognito) before they can be assigned to a group.
-
-**Step 1 — Find their Cognito username**
-
-For Google OAuth users the username is their Google sub ID, not their email. Look it up by email:
-
-```bash
-aws cognito-idp list-users \
-  --user-pool-id <pool-id> \
-  --filter 'email = "jane@example.com"' \
-  --query 'Users[0].Username' \
-  --output text
-```
-
-To find the pool ID:
-
-```bash
-aws cognito-idp list-user-pools --max-results 10
-```
-
-**Step 2 — Add them to `local.admin_users`**
-
-Open `infrastructure/aws/cognito.tf` and add their username to the list:
-
-```hcl
-locals {
-  admin_users = [
-    "109876543210987654321",  # Jane Doe (jane@example.com)
-  ]
-}
-```
-
-**Step 3 — Apply**
-
-```bash
-cd infrastructure/aws
-tofu plan   # verify only the group membership is being added
-tofu apply
-```
-
-### How to remove an admin
-
-Remove their username from `local.admin_users` in `cognito.tf` and run `tofu apply`. This removes them from the `admin` group but leaves their account and `member` membership intact.
+| Secret | `GH_TOFU_TOKEN` | Manual | Personal Access Token |
 
 ---
 
 ## State backend
 
-Each module has its own state key in the shared S3 bucket:
-
 | Module | State key |
 |---|---|
 | `aws` | `terraform.tfstate` |
-| `app` | `app/terraform.tfstate` |
+| `cognito` | `cognito/terraform.tfstate` |
+| `calendar` | `calendar/terraform.tfstate` |
 | `google` | `google/terraform.tfstate` |
 | `github` | `github/terraform.tfstate` |

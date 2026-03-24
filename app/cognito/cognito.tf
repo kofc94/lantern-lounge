@@ -94,9 +94,6 @@ resource "aws_cognito_user_pool_client" "calendar_app" {
     refresh_token = "days"
   }
 
-  # No client secret (public client for JavaScript)
-  generate_secret = false
-
   # Allowed OAuth flows for public clients
   allowed_oauth_flows_user_pool_client = true
   allowed_oauth_flows                  = ["implicit", "code"]
@@ -186,8 +183,3 @@ resource "aws_cognito_user_in_group" "admin" {
   username     = each.value
 }
 
-# ── Output the hosted UI URL ───────────────────────────────────────────────────
-output "cognito_hosted_ui_url" {
-  description = "Cognito Hosted UI URL for sign-in"
-  value       = "https://${aws_cognito_user_pool_domain.calendar_domain.domain}.auth.${var.aws_region}.amazoncognito.com/login?client_id=${aws_cognito_user_pool_client.calendar_app.id}&response_type=code&redirect_uri=https://${local.www_domain_name}/calendar.html"
-}
