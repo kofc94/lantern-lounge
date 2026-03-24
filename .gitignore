@@ -11,6 +11,8 @@
 *.tfplan.*
 terraform.tfvars
 **/*.tfvars
+*_override.tf
+**/*_override.tf
 
 # Build Artifacts
 *.zip
