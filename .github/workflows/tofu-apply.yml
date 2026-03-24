@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - "infrastructure/**"
+      - "app/**"
 
 jobs:
   # ── infrastructure/aws ──────────────────────────────────────────────────────
@@ -50,9 +51,9 @@ jobs:
         working-directory: infrastructure/aws
         run: tofu apply -input=false -auto-approve
 
-  # ── infrastructure/app ──────────────────────────────────────────────────────
-  apply-app:
-    name: Apply / app
+  # ── app/cognito ──────────────────────────────────────────────────────────
+  apply-cognito:
+    name: Apply / cognito
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -66,7 +67,7 @@ jobs:
       - name: Detect changes
         id: changes
         run: |
-          if git diff --name-only HEAD~1 HEAD | grep -q '^infrastructure/app/'; then
+          if git diff --name-only HEAD~1 HEAD | grep -q '^app/cognito/'; then
             echo "changed=true" >> $GITHUB_OUTPUT
           else
             echo "changed=false" >> $GITHUB_OUTPUT
@@ -84,12 +85,55 @@ jobs:
 
       - name: Tofu Init
         if: steps.changes.outputs.changed == 'true'
-        working-directory: infrastructure/app
+        working-directory: app/cognito
         run: tofu init -input=false
 
       - name: Tofu Apply
         if: steps.changes.outputs.changed == 'true'
-        working-directory: infrastructure/app
+        working-directory: app/cognito
+        run: tofu apply -input=false -auto-approve
+
+  # ── app/calendar ──────────────────────────────────────────────────────────
+  apply-calendar:
+    name: Apply / calendar
+    needs: [apply-cognito]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect changes
+        id: changes
+        run: |
+          if git diff --name-only HEAD~1 HEAD | grep -q '^app/calendar/'; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Configure AWS credentials
+        if: steps.changes.outputs.changed == 'true'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - uses: opentofu/setup-opentofu@v1
+        if: steps.changes.outputs.changed == 'true'
+
+      - name: Tofu Init
+        if: steps.changes.outputs.changed == 'true'
+        working-directory: app/calendar
+        run: tofu init -input=false
+
+      - name: Tofu Apply
+        if: steps.changes.outputs.changed == 'true'
+        working-directory: app/calendar
         run: tofu apply -input=false -auto-approve
 
   # ── infrastructure/google ───────────────────────────────────────────────────

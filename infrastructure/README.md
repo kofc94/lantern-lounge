@@ -14,7 +14,8 @@ All modules share a remote state backend in S3:
 | Module | Path | What it manages |
 |---|---|---|
 | AWS | `aws/` | S3, CloudFront, Route53, ACM, GitHub OIDC IAM |
-| App | `app/` | Cognito, Lambda, DynamoDB, API Gateway, Google IdP |
+| Cognito | `../app/cognito/` | Cognito User Pool, Google IdP, Post-confirmation Lambda |
+| Calendar | `../app/calendar/` | DynamoDB, API Gateway, Calendar Lambda functions |
 | Google | `google/` | Google Cloud project, IAP brand, CI service account |
 | GitHub | `github/` | Repo settings, teams, branch protection |
 
@@ -113,8 +114,8 @@ Two workflows automate plan and apply on every infrastructure change. AWS authen
 
 | Event | Workflow | Action |
 |---|---|---|
-| Pull request touching `infrastructure/**` | `tofu-plan.yml` | Runs `tofu plan` for each changed module, posts output as a PR comment, blocks merge on error |
-| Merge to `main` touching `infrastructure/**` | `tofu-apply.yml` | Runs `tofu apply` for each changed module |
+| Pull request touching `infrastructure/**`, `app/cognito/**` or `app/calendar/**` | `tofu-plan.yml` | Runs `tofu plan` for each changed module, posts output as a PR comment, blocks merge on error |
+| Merge to `main` touching `infrastructure/**`, `app/cognito/**` or `app/calendar/**` | `tofu-apply.yml` | Runs `tofu apply` for each changed module |
 
 ### Bootstrap (one-time setup)
 
@@ -148,14 +149,21 @@ cd infrastructure/google
 tofu init && tofu apply
 ```
 
-**Step 4 — Apply the `app` module locally** to set up Cognito, Lambda, DynamoDB, and API Gateway:
+**Step 4 — Apply the `app/cognito` module locally** to set up Cognito and its Lambda trigger:
 
 ```bash
-cd infrastructure/app
+cd app/cognito
 tofu init && tofu apply
 ```
 
-**Step 5 — Apply the `github` module locally** to push the remaining secrets/variables to GitHub Actions from their sources (AWS state + SSM):
+**Step 5 — Apply the `app/calendar` module locally** to set up DynamoDB and API Gateway:
+
+```bash
+cd app/calendar
+tofu init && tofu apply
+```
+
+**Step 6 — Apply the `github` module locally** to push the remaining secrets/variables to GitHub Actions from their sources (AWS state + SSM):
 
 ```bash
 cd infrastructure/github
@@ -253,6 +261,7 @@ Each module has its own state key in the shared S3 bucket:
 | Module | State key |
 |---|---|
 | `aws` | `terraform.tfstate` |
-| `app` | `app/terraform.tfstate` |
+| `cognito` | `cognito/terraform.tfstate` |
+| `calendar` | `calendar/terraform.tfstate` |
 | `google` | `google/terraform.tfstate` |
 | `github` | `github/terraform.tfstate` |

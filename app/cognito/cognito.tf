@@ -186,8 +186,3 @@ resource "aws_cognito_user_in_group" "admin" {
   username     = each.value
 }
 
-# ── Output the hosted UI URL ───────────────────────────────────────────────────
-output "cognito_hosted_ui_url" {
-  description = "Cognito Hosted UI URL for sign-in"
-  value       = "https://${aws_cognito_user_pool_domain.calendar_domain.domain}.auth.${var.aws_region}.amazoncognito.com/login?client_id=${aws_cognito_user_pool_client.calendar_app.id}&response_type=code&redirect_uri=https://${local.www_domain_name}/calendar.html"
-}
