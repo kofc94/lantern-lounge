@@ -30,11 +30,16 @@ aws ssm put-parameter --name /lantern-lounge/google/client-secret --value "YOUR_
 
 ### 3. Apply Cognito Infrastructure
 
-Run the `make deploy` command in the `cognito` directory to configure the User Pool with the Google IdP:
+Run the `make deploy` command in the `app/cognito` directory to configure the User Pool with the Google IdP:
 
 ```bash
 cd app/cognito
 make deploy
+```
+
+Alternatively, from the root directory, you can run:
+```bash
+make deploy  # Deploys all modules including cognito
 ```
 
 ## App Configuration
@@ -51,6 +56,10 @@ const CONFIG = {
   }
 };
 ```
+
+## Local Development Note
+
+When running locally with **LocalStack** (`make local-setup`), the app currently continues to use the production Cognito User Pool for authentication. LocalStack emulation for Cognito is not enabled by default in the current `local/docker-compose.yml` to simplify first-time setup.
 
 ## Troubleshooting
 
