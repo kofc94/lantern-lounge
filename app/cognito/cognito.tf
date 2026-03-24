@@ -94,9 +94,6 @@ resource "aws_cognito_user_pool_client" "calendar_app" {
     refresh_token = "days"
   }
 
-  # No client secret (public client for JavaScript)
-  generate_secret = false
-
   # Allowed OAuth flows for public clients
   allowed_oauth_flows_user_pool_client = true
   allowed_oauth_flows                  = ["implicit", "code"]

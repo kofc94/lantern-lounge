@@ -9,7 +9,7 @@ terraform {
 
   backend "s3" {
     bucket = "lanternlounge-tfstate"
-    key    = "calendar/terraform.tfstate"
+    key    = "app/terraform.tfstate"
     region = "us-east-1"
   }
 }
@@ -18,7 +18,7 @@ data "terraform_remote_state" "cognito" {
   backend = "s3"
   config = {
     bucket = "lanternlounge-tfstate"
-    key    = "cognito/terraform.tfstate"
+    key    = "authentication/terraform.tfstate"
     region = "us-east-1"
   }
 }

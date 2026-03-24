@@ -4,12 +4,12 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"node mock-server.js\" \"vite\"",
-    "dev:live": "vite",
+    "dev": "concurrently \"node mock-server.js\" \"vite --config config/vite.config.js\"",
+    "dev:live": "vite --config config/vite.config.js",
     "mock": "node mock-server.js",
-    "build": "vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
+    "build": "vite build --config config/vite.config.js",
+    "lint": "eslint . --config config/eslint.config.js",
+    "preview": "vite preview --config config/vite.config.js"
   },
   "dependencies": {
     "aws-amplify": "^6.0.0",

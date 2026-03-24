@@ -1,16 +1,68 @@
-# React + Vite
+# Lantern Lounge React App
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Frontend for the Lantern Lounge member portal. Built with React 19, Vite, and Tailwind CSS.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Auth**: Amazon Cognito integration with Google OAuth support.
+- **Events**: Integration with the Calendar API (DynamoDB).
+- **Design**: Modern, responsive UI with Tailwind CSS.
 
-## React Compiler
+## Project Structure
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```
+react-webapp/
+├── src/               # Application source code
+├── public/            # Static assets
+├── config/            # Tool configuration (Vite, ESLint, Tailwind, etc.)
+├── Makefile           # Standard build/test/deploy targets
+└── package.json       # Dependencies and scripts
+```
 
-## Expanding the ESLint configuration
+## Development
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### 1. Install Dependencies & Build
+
+```bash
+make build
+```
+
+### 2. Run Local Development Server
+
+```bash
+npm run dev
+```
+
+### 3. Run Linting
+
+```bash
+make test
+```
+
+### 4. Production Build (Local)
+
+```bash
+npm run build
+```
+
+The optimized build will be generated in the `dist/` directory.
+
+## Deployment
+
+Deploying the app is handled via the `Makefile`. This will build the project and synchronize the `dist/` folder with the production S3 bucket, then invalidate the CloudFront cache.
+
+```bash
+make deploy
+```
+
+> **Note**: This requires infrastructure to be previously deployed in `infrastructure/aws/` as it pulls the S3 bucket name and CloudFront distribution ID from the OpenTofu outputs.
+
+## Configuration
+
+The application uses configuration files located in the `config/` directory:
+- `vite.config.js`
+- `tailwind.config.js`
+- `postcss.config.js`
+- `eslint.config.js`
+
+AWS settings (Cognito User Pool ID, API Endpoints) are configured in `src/config/aws-config.js`.

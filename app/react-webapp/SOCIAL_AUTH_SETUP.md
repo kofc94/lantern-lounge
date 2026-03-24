@@ -1,126 +1,63 @@
 # Social Authentication Setup Guide
 
-The app now includes Google sign-in in the authentication modal. To enable this feature, you need to configure AWS Cognito User Pool with Google as a federated identity provider.
+The app includes Google sign-in support. This is handled via AWS Cognito User Pools as a Federated Identity Provider.
 
-**Note**: This setup is now automated using Terraform. See `/infrastructure/authentication/` for the Infrastructure as Code implementation.
+**Note**: This setup is fully automated using OpenTofu. See `app/cognito/` for the implementation.
 
 ## Prerequisites
 
-- AWS Cognito User Pool already set up
-- OAuth credentials from Google Cloud Console
+- AWS Cognito User Pool (managed via `app/cognito/`).
+- OAuth credentials (Client ID and Secret) from Google Cloud Console.
 
-## Setup Methods
+## Setup Instructions
 
-### Option 1: Terraform (Recommended)
+### 1. Configure Google OAuth
 
-Use the Infrastructure as Code setup in `/infrastructure/authentication/`. See the README there for complete instructions.
+1. Go to [Google Cloud Console](https://console.cloud.google.com/).
+2. Create/Select a project.
+3. Go to **Credentials** → **Create Credentials** → **OAuth 2.0 Client ID**.
+4. Authorized redirect URIs: `https://<your-cognito-domain>.auth.<region>.amazoncognito.com/oauth2/idpresponse`.
+5. Note the Client ID and Secret.
 
-### Option 2: Manual Setup (AWS Console)
+### 2. Store Credentials in AWS
 
-Follow the instructions below to manually configure Google OAuth in AWS Console.
+Store the Google credentials in AWS SSM Parameter Store so OpenTofu can access them:
 
-## Manual Setup Instructions
+```bash
+aws ssm put-parameter --name /lantern-lounge/google/client-id --value "YOUR_CLIENT_ID" --type String
+aws ssm put-parameter --name /lantern-lounge/google/client-secret --value "YOUR_CLIENT_SECRET" --type SecureString
+```
 
-### 1. Configure Social Identity Providers in AWS Cognito
+### 3. Apply Cognito Infrastructure
 
-#### Google Sign-In
+Run the `make deploy` command in the `cognito` directory to configure the User Pool with the Google IdP:
 
-1. **Create Google OAuth Credentials:**
-   - Go to [Google Cloud Console](https://console.cloud.google.com/)
-   - Create a new project or select existing
-   - Enable Google+ API
-   - Go to Credentials → Create Credentials → OAuth 2.0 Client ID
-   - Application type: Web application
-   - Authorized redirect URIs: `https://<your-cognito-domain>.auth.<region>.amazoncognito.com/oauth2/idpresponse`
+```bash
+cd app/cognito
+make deploy
+```
 
-2. **Configure in AWS Cognito:**
-   - Go to AWS Cognito Console → User Pools → Your pool
-   - Sign-in experience → Federated identity provider sign-in
-   - Add identity provider → Google
-   - Enter Client ID and Client Secret from Google
-   - Map attributes (email, name)
+## App Configuration
 
-
-### 2. Configure App Client Settings
-
-1. Go to App integration → App client settings
-2. Enable the identity provider you configured (Google)
-3. Set Callback URLs: Your app URLs (e.g., `http://localhost:5174`, `http://localhost:5174/events`, `https://www.lanternlounge.org`, `https://www.lanternlounge.org/events`)
-4. Set Sign out URLs: Your app URLs (e.g., `http://localhost:5174`, `https://www.lanternlounge.org`)
-5. Select OAuth 2.0 flows: Authorization code grant
-6. Select OAuth Scopes: openid, email, profile
-
-### 3. Configure Hosted UI (Optional)
-
-1. Go to App integration → Domain name
-2. Use either:
-   - Amazon Cognito domain: `<prefix>.auth.<region>.amazoncognito.com`
-   - Custom domain (requires SSL certificate)
-
-### 4. Update App Configuration
-
-Update `src/config/aws-config.js` with your Cognito domain:
+Ensure `src/config/aws-config.js` reflects your Cognito Domain:
 
 ```javascript
 const CONFIG = {
   cognito: {
-    userPoolId: 'your-user-pool-id',
-    userPoolRegion: 'your-region',
-    appClientId: 'your-app-client-id',
-    domain: 'your-cognito-domain.auth.region.amazoncognito.com' // Already configured
+    userPoolId: '...',
+    userPoolRegion: 'us-east-1',
+    appClientId: '...',
+    domain: 'your-domain.auth.us-east-1.amazoncognito.com'
   }
 };
 ```
 
-## Testing Google Sign-In
-
-1. Start the dev server: `npm run dev`
-2. Click "Member Login" in navbar
-3. Click "Continue with Google"
-4. You'll be redirected to Google's sign-in page
-5. After successful authentication, you'll be redirected back to the app
-
-## Current Status
-
-✅ UI implemented with Google sign-in button
-✅ Client-side code for federated sign-in
-✅ Terraform configuration available in `/infrastructure/authentication/`
-⚠️ Requires AWS Cognito configuration (use Terraform or manual setup above)
-
-## Fallback
-
-If Google sign-in is not configured yet, users will see an error message and can still use email/password authentication which is already working.
-
-## Why Only Google?
-
-Google OAuth is the most straightforward social identity provider to set up:
-- Simple OAuth 2.0 flow
-- Provides email and profile automatically
-- No app review required for basic use
-- Free for unlimited users
-- Most users already have Google accounts
-
-Facebook and Apple can be added later if needed, but Google covers the majority of use cases.
-
 ## Troubleshooting
 
-**"Social sign-in is not configured yet"**
-- Check that Google identity provider is enabled in Cognito
-- Verify callback URLs match exactly (including localhost:5174 for development)
-- Ensure OAuth scopes are selected (openid, email, profile)
-- If using Terraform, ensure you've applied the configuration
+### "Social sign-in is not configured yet"
+- Verify that the Google Identity Provider is visible in the Cognito User Pool console.
+- Ensure the App Client has "Google" selected as an enabled Identity Provider.
+- Check that the `Callback URLs` in Cognito include both your local development URL (`http://localhost:5173`) and production URL.
 
-**Redirect loop**
-- Check that app client has correct callback URLs
-- Verify domain is correctly configured
-
-**Missing user attributes**
-- Check attribute mapping in identity provider settings
-- Ensure scopes include required attributes (email, profile)
-
-## Resources
-
-- [AWS Cognito Social Identity Providers](https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools-social-idp.html)
-- [Google OAuth 2.0](https://developers.google.com/identity/protocols/oauth2)
-- [Terraform AWS Cognito Identity Provider](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cognito_identity_provider)
-- [Infrastructure Setup (Terraform)](../../../infrastructure/authentication/README.md)
+### Redirect loop
+Check that the OAuth scopes mapped in Cognito match those requested by the app (`openid`, `email`, `profile`).

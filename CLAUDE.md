@@ -5,40 +5,48 @@ Domain: **lanternlounge.org** | GitHub org: **kofc94**
 
 ## Core principle: IaC first
 
-Prefer infrastructure-as-code over manual changes. Any new cloud resource (AWS, GitHub, etc.) should be managed via OpenTofu in the `infrastructure/` directory before it is created manually. Use `tofu` (not `terraform`) for all IaC commands.
+Prefer infrastructure-as-code over manual changes. Any new cloud resource (AWS, GitHub, etc.) should be managed via OpenTofu in the `infrastructure/` directory or within the project folders before it is created manually. Use `tofu` (not `terraform`) for all IaC commands.
 
 ---
 
 ## Critical Rules 🚨
 
-Under no circumpstance should any code rely on any sensitive value; the repository is public. Sensitive values are to be store in AWS Parameter Store.
+Under no circumstance should any code rely on any sensitive value; the repository is public. Sensitive values are to be stored in AWS Parameter Store or managed via OpenTofu secrets.
 
-Keep the README.md updated after each changes
+Keep the documentation updated after each change.
 
+## The infrastructure folder
+
+The `infrastructure/` folder contains the OpenTofu scripts needed to bootstrap the platform core — OIDC roles, permissions, Google Cloud project, and GitHub repository settings.
+
+## The app folder
+
+The `app/` folder contains all the sub-projects. Each project is self-contained (including its own infrastructure where applicable) and must implement a `Makefile` with the following targets:
+- `build`: Prepares the project (e.g., `npm install` or `tofu init`)
+- `test`: Runs validations (e.g., `npm run lint` or `tofu plan`)
+- `deploy`: Deploys the project to production
+
+The CI/CD pipelines rely on these `make` commands.
 
 ## Repository structure
 
 ```
 lantern-lounge/
-├── app/                        # Application code
+├── app/                        # Application code & project-specific infra
 │   ├── react-webapp/           # React SPA (primary frontend)
-│   ├── cognito/                # Cognito & Auth infra
-│   │   ├── auth/               # Post-confirmation handler
-│   │   └── *.tf                # Cognito, Google IdP
-│   └── calendar/               # Calendar API infra
-│       ├── api/                # Python API handlers
-│       └── *.tf                # API GW, DynamoDB, Lambda
-├── infrastructure/             # Core infrastructure modules
+│   ├── cognito/                # Cognito User Pool & Auth logic
+│   └── calendar/               # Calendar API (Lambda & DynamoDB)
+├── infrastructure/             # Core platform infrastructure
 │   ├── aws/                    # Core AWS infra (S3, CloudFront, Route53, ACM)
-│   ├── google/                 # Google Cloud project & IdP
+│   ├── google/                 # Google Cloud project & IdP bootstrap
 │   └── github/                 # GitHub repo & team management
-├── ci/                         # Deployment scripts
+├── ci/                         # Shared deployment scripts
 └── artifacts/                  # Build artifacts
 ```
 
 ---
 
-## Infrastructure (`infrastructure/`)
+## Infrastructure
 
 All modules share a remote state backend on S3:
 - **Bucket**: `lanternlounge-tfstate`
@@ -49,59 +57,49 @@ All modules share a remote state backend on S3:
 | Module | Path | What it manages |
 |---|---|---|
 | AWS core | `infrastructure/aws/` | S3 buckets, CloudFront, Route53, ACM certificate |
-| Authentication | `infrastructure/authentication/` | Cognito User Pool, Google OAuth IdP, App Client |
-| GitHub | `infrastructure/github/` | Repo settings, teams, memberships |
-
-### Common commands
-
-```bash
-cd infrastructure/<module>
-tofu init
-tofu plan
-tofu apply
-```
+| Authentication | `app/cognito/` | Cognito User Pool, Google OAuth IdP, Post-confirmation Lambda |
+| Calendar API | `app/calendar/` | DynamoDB, API Gateway, Lambda functions |
+| GitHub | `infrastructure/github/` | Repo settings, teams, memberships, secrets |
 
 ---
 
 ## Application code (`app/`)
 
-### `app/react-webapp/` — React SPA (primary frontend)
+### `app/react-webapp/` — React SPA
 
-- **Stack**: React 19, Vite, Tailwind CSS, React Router v6, Amazon Cognito (auth)
-- **Auth**: Cognito User Pool with Google OAuth via `amazon-cognito-identity-js`
+- **Stack**: React 19, Vite, Tailwind CSS, Amazon Cognito
+- **Config**: Tooling configs (Vite, ESLint, PostCSS, Tailwind) are in `config/`
 
 ```bash
 cd app/react-webapp
-npm install
-npm run dev       # local dev server
-npm run build     # production build to dist/
-npm run lint
+make build     # install deps and build
+make test      # run lint
+make deploy    # build and sync to S3 + invalidate CloudFront
 ```
 
-### `app/lambda/` — Calendar API (Python)
+### `app/calendar/` — Calendar API (Python)
 
-Python functions deployed as AWS Lambda. Handles CRUD for calendar events via DynamoDB.
+Python functions deployed as AWS Lambda. Handles CRUD for calendar events via DynamoDB. Infrastructure is managed via OpenTofu within this directory.
 
-Files: `get_items.py`, `create_item.py`, `update_item.py`, `delete_item.py`
-
-Package for deployment: `./package.sh` (produces `calendar-api.zip`)
-
-### `app/webapp/` — Legacy site (vanilla HTML/CSS/JS)
-
-Static site, kept for reference. New features go into `react-webapp`.
-
-Local dev: open `index.html` in browser or `python -m http.server 8000`
+```bash
+cd app/calendar
+make build     # tofu init
+make test      # tofu plan
+make deploy    # tofu apply
+```
 
 ---
 
 ## Deployment
 
-CI scripts live in `ci/`. Deployment pushes built assets to S3 and invalidates CloudFront.
+Deployment is standardized across all projects using `make deploy`.
 
 ```bash
-# Deploy react-webapp
-cd app/react-webapp && npm run build
-# Then run the appropriate ci/ deploy script
+# Example: Deploy the frontend
+cd app/react-webapp && make deploy
+
+# Example: Deploy the calendar API
+cd app/calendar && make deploy
 ```
 
 ---
