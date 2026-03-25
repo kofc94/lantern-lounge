@@ -66,6 +66,22 @@ resource "aws_cognito_user_pool" "calendar_users" {
     attributes_require_verification_before_update = ["email"]
   }
 
+  verification_message_template {
+    default_email_option = "CONFIRM_WITH_LINK"
+    
+    # Template for code-based verification (fallback/attribute updates)
+    email_subject        = "Your Lantern Lounge Invitation Code"
+    email_message        = templatefile("${path.module}/auth/verification_email.html.tpl", {
+      project_name = "The Lantern Lounge"
+    })
+
+    # Template for link-based verification (primary sign-up)
+    email_subject_by_link = "Your Lantern Lounge Invitation"
+    email_message_by_link = templatefile("${path.module}/auth/verification_email_link.html.tpl", {
+      project_name = "The Lantern Lounge"
+    })
+  }
+
   lambda_config {
     post_confirmation = aws_lambda_function.post_confirmation.arn
   }
