@@ -170,12 +170,12 @@ export const fetchUsers = async (authToken, paginationToken = null) => {
 };
 
 /**
- * Update a user's managed groups (Admin only)
+ * Update a user's role profile (Admin only)
  * @param {string} username - Target username
- * @param {string[]} groups - List of managed groups ('admin', 'member', 'limited')
+ * @param {string} profile - New role ('admin', 'member', 'limited')
  * @param {string} authToken - JWT auth token
  */
-export const updateUserGroups = async (username, groups, authToken) => {
+export const updateUserRole = async (username, profile, authToken) => {
   if (!authToken) throw new Error('Authentication required');
 
   try {
@@ -185,7 +185,7 @@ export const updateUserGroups = async (username, groups, authToken) => {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${authToken}`
       },
-      body: JSON.stringify({ groups })
+      body: JSON.stringify({ profile })
     });
 
     if (!response.ok) {
@@ -194,7 +194,7 @@ export const updateUserGroups = async (username, groups, authToken) => {
     }
     return await response.json();
   } catch (error) {
-    console.error('Error updating user groups:', error);
+    console.error('Error updating user role:', error);
     throw error;
   }
 };
@@ -205,5 +205,5 @@ export default {
   updateEvent,
   deleteEvent,
   fetchUsers,
-  updateUserGroups
+  updateUserRole
 };

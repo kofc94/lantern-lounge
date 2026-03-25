@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { fetchUsers, updateUserGroups } from '../services/api';
+import { fetchUsers, updateUserRole } from '../services/api';
 import Button from '../components/common/Button';
 import clsx from 'clsx';
 
 /**
- * Admin Page - User management and group assignment
+ * Admin Page - User management and profile role assignment
  */
 const Admin = () => {
   const { getToken, isAdmin } = useAuth();
@@ -38,33 +38,25 @@ const Admin = () => {
     }
   }, [isAdmin]);
 
-  const handleUpdate = async (user, action, value) => {
+  const handleUpdate = async (username, currentProfile, action, value) => {
     try {
-      setIsUpdating(user.username);
+      setIsUpdating(username);
       setError(null);
       setSuccess(null);
       const authToken = await getToken();
 
-      // Managed groups: 'admin', 'member', 'limited'
-      const currentManaged = user.groups.filter(g => ['admin', 'member', 'limited'].includes(g));
-      let newManaged = [...currentManaged];
+      let newProfile = currentProfile;
 
       if (action === 'toggle_admin') {
-        if (value) {
-          if (!newManaged.includes('admin')) newManaged.push('admin');
-        } else {
-          newManaged = newManaged.filter(g => g !== 'admin');
-        }
+        newProfile = value ? 'admin' : 'member'; // If removing admin, default back to member
       } else if (action === 'set_membership') {
-        // Membership is mutually exclusive: member OR limited
-        newManaged = newManaged.filter(g => g !== 'member' && g !== 'limited');
-        newManaged.push(value);
+        newProfile = value;
       }
 
-      await updateUserGroups(user.username, newManaged, authToken);
+      await updateUserRole(username, newProfile, authToken);
       
-      setSuccess(`User status updated successfully.`);
-      // Refresh user list to show new groups
+      setSuccess(`User status updated to ${newProfile}.`);
+      // Refresh user list to show new profile
       await loadUsers(paginationToken);
       
       // Clear success message after 3 seconds
@@ -130,9 +122,9 @@ const Admin = () => {
                 </tr>
               ) : (
                 users.map((user) => {
-                  const isUserAdmin = user.groups.includes('admin');
-                  const isMember = user.groups.includes('member');
-                  const isLimited = user.groups.includes('limited');
+                  const isUserAdmin = user.profile === 'admin';
+                  const isMember = user.profile === 'member';
+                  const isLimited = user.profile === 'limited';
 
                   return (
                     <tr key={user.username} className="hover:bg-stone-50/50 transition-colors">
@@ -148,7 +140,7 @@ const Admin = () => {
                           <input 
                             type="checkbox"
                             checked={isUserAdmin}
-                            onChange={(e) => handleUpdate(user, 'toggle_admin', e.target.checked)}
+                            onChange={(e) => handleUpdate(user.username, user.profile, 'toggle_admin', e.target.checked)}
                             disabled={isUpdating === user.username}
                             className="w-5 h-5 accent-primary border-stone-300 rounded focus:ring-primary cursor-pointer"
                           />
@@ -164,24 +156,24 @@ const Admin = () => {
                               name={`membership-${user.username}`}
                               value="limited"
                               checked={isLimited}
-                              onChange={() => handleUpdate(user, 'set_membership', 'limited')}
-                              disabled={isUpdating === user.username}
+                              onChange={() => handleUpdate(user.username, user.profile, 'set_membership', 'limited')}
+                              disabled={isUpdating === user.username || isUserAdmin}
                               className="w-4 h-4 accent-stone-800 border-stone-300 focus:ring-stone-800 cursor-pointer"
-                              />
-                              <span className={clsx(
+                            />
+                            <span className={clsx(
                               "text-xs font-mono uppercase tracking-widest transition-colors",
                               isLimited ? "text-stone-900 font-bold" : "text-stone-400 group-hover:text-stone-600"
-                              )}>Limited</span>
-                              </label>
+                            )}>Limited</span>
+                          </label>
 
-                              <label className="flex items-center space-x-2 cursor-pointer group">
-                              <input 
+                          <label className="flex items-center space-x-2 cursor-pointer group">
+                            <input 
                               type="radio"
                               name={`membership-${user.username}`}
                               value="member"
                               checked={isMember}
-                              onChange={() => handleUpdate(user, 'set_membership', 'member')}
-                              disabled={isUpdating === user.username}
+                              onChange={() => handleUpdate(user.username, user.profile, 'set_membership', 'member')}
+                              disabled={isUpdating === user.username || isUserAdmin}
                               className="w-4 h-4 accent-stone-800 border-stone-300 focus:ring-stone-800 cursor-pointer"
                             />
                             <span className={clsx(

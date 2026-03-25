@@ -84,17 +84,19 @@ export const getCurrentUser = async () => {
 
     let email = tokenPayload.email;
     let name = tokenPayload.name;
+    let profile = tokenPayload.profile;
 
     // For native Cognito users, fetchUserAttributes is more reliable
     try {
       const attributes = await fetchUserAttributes();
       email = attributes.email ?? email;
       name = attributes.name ?? name;
+      profile = attributes.profile ?? profile;
     } catch {
       // Federated (Google) users may not support fetchUserAttributes — fall back to token claims
     }
 
-    return { email, name, groups, session };
+    return { email, name, groups, profile, session };
   } catch {
     return null;
   }
