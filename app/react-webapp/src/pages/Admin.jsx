@@ -38,22 +38,22 @@ const Admin = () => {
     }
   }, [isAdmin]);
 
-  const handleUpdateGroup = async (username, newGroup) => {
+  const handleUpdate = async (username, action, value) => {
     try {
       setIsUpdating(username);
       setError(null);
       setSuccess(null);
       const authToken = await getToken();
-      await updateUserGroup(username, newGroup, authToken);
+      await updateUserGroup(username, { action, value }, authToken);
       
-      setSuccess(`User ${username} updated to ${newGroup}`);
+      setSuccess(`User status updated successfully.`);
       // Refresh user list to show new groups
       await loadUsers(paginationToken);
       
       // Clear success message after 3 seconds
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
-      setError(err.message || 'Failed to update user group');
+      setError(err.message || 'Failed to update user status');
     } finally {
       setIsUpdating(null);
     }
@@ -98,8 +98,8 @@ const Admin = () => {
               <tr>
                 <th className="px-6 py-4 text-left text-xs font-mono text-[#a69681] uppercase tracking-[0.2em] font-bold">User</th>
                 <th className="px-6 py-4 text-left text-xs font-mono text-[#a69681] uppercase tracking-[0.2em] font-bold">Email</th>
-                <th className="px-6 py-4 text-left text-xs font-mono text-[#a69681] uppercase tracking-[0.2em] font-bold">Current Status</th>
-                <th className="px-6 py-4 text-left text-xs font-mono text-[#a69681] uppercase tracking-[0.2em] font-bold">Actions</th>
+                <th className="px-6 py-4 text-center text-xs font-mono text-[#a69681] uppercase tracking-[0.2em] font-bold">Admin</th>
+                <th className="px-6 py-4 text-center text-xs font-mono text-[#a69681] uppercase tracking-[0.2em] font-bold">Membership</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-100 bg-[#fffcf7]">
@@ -112,53 +112,76 @@ const Admin = () => {
                   <td colSpan="4" className="px-6 py-20 text-center text-stone-400 italic">No users found.</td>
                 </tr>
               ) : (
-                users.map((user) => (
-                  <tr key={user.username} className="hover:bg-stone-50/50 transition-colors">
-                    <td className="px-6 py-5">
-                      <div className="font-serif text-neutral-dark font-bold">{user.name || 'Anonymous'}</div>
-                      <div className="text-xs font-mono text-stone-400">{user.username}</div>
-                    </td>
-                    <td className="px-6 py-5 text-stone-600 font-serif">{user.email}</td>
-                    <td className="px-6 py-5">
-                      <div className="flex flex-wrap gap-2">
-                        {user.groups.length === 0 ? (
-                          <span className="px-2 py-1 text-[10px] font-mono bg-stone-100 text-stone-400 rounded-sm uppercase tracking-tighter">No Group</span>
-                        ) : (
-                          user.groups.map(group => (
-                            <span 
-                              key={group}
-                              className={clsx(
-                                "px-2 py-1 text-[10px] font-mono rounded-sm uppercase tracking-widest font-bold",
-                                group === 'admin' ? "bg-red-100 text-red-700 border border-red-200" :
-                                group === 'member' ? "bg-stone-800 text-stone-100" :
-                                "bg-stone-200 text-stone-600"
-                              )}
-                            >
-                              {group}
-                            </span>
-                          ))
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-5">
-                      <div className="flex items-center space-x-2">
-                        <select 
-                          className="text-xs font-mono bg-stone-50 border border-stone-200 rounded-sm py-1.5 px-2 focus:ring-1 focus:ring-primary outline-none transition-all"
-                          onChange={(e) => handleUpdateGroup(user.username, e.target.value)}
-                          value={user.groups.includes('admin') ? 'admin' : user.groups.includes('member') ? 'member' : 'limited'}
-                          disabled={isUpdating === user.username}
-                        >
-                          <option value="limited">Limited</option>
-                          <option value="member">Member</option>
-                          <option value="admin">Admin</option>
-                        </select>
-                        {isUpdating === user.username && (
-                          <span className="text-[10px] font-mono text-stone-400 animate-pulse">Updating...</span>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                users.map((user) => {
+                  const isUserAdmin = user.groups.includes('admin');
+                  const isMember = user.groups.includes('member');
+                  const isLimited = user.groups.includes('limited');
+                  const currentMembership = isMember ? 'member' : 'limited';
+
+                  return (
+                    <tr key={user.username} className="hover:bg-stone-50/50 transition-colors">
+                      <td className="px-6 py-5">
+                        <div className="font-serif text-neutral-dark font-bold">{user.name || 'Anonymous'}</div>
+                        <div className="text-xs font-mono text-stone-400">{user.username}</div>
+                      </td>
+                      <td className="px-6 py-5 text-stone-600 font-serif">{user.email}</td>
+                      
+                      {/* Admin Column */}
+                      <td className="px-6 py-5 text-center">
+                        <div className="flex justify-center">
+                          <input 
+                            type="checkbox"
+                            checked={isUserAdmin}
+                            onChange={(e) => handleUpdate(user.username, 'toggle_admin', e.target.checked)}
+                            disabled={isUpdating === user.username}
+                            className="w-5 h-5 accent-primary border-stone-300 rounded focus:ring-primary cursor-pointer"
+                          />
+                        </div>
+                      </td>
+
+                      {/* Membership Column */}
+                      <td className="px-6 py-5">
+                        <div className="flex justify-center items-center space-x-6">
+                          <label className="flex items-center space-x-2 cursor-pointer group">
+                            <input 
+                              type="radio"
+                              name={`membership-${user.username}`}
+                              value="limited"
+                              checked={isLimited}
+                              onChange={() => handleUpdate(user.username, 'set_membership', 'limited')}
+                              disabled={isUpdating === user.username}
+                              className="w-4 h-4 accent-stone-800 border-stone-300 focus:ring-stone-800 cursor-pointer"
+                            />
+                            <span className={clsx(
+                              "text-xs font-mono uppercase tracking-widest transition-colors",
+                              isLimited ? "text-stone-900 font-bold" : "text-stone-400 group-hover:text-stone-600"
+                            )}>Limited</span>
+                          </label>
+
+                          <label className="flex items-center space-x-2 cursor-pointer group">
+                            <input 
+                              type="radio"
+                              name={`membership-${user.username}`}
+                              value="member"
+                              checked={isMember}
+                              onChange={() => handleUpdate(user.username, 'set_membership', 'member')}
+                              disabled={isUpdating === user.username}
+                              className="w-4 h-4 accent-stone-800 border-stone-300 focus:ring-stone-800 cursor-pointer"
+                            />
+                            <span className={clsx(
+                              "text-xs font-mono uppercase tracking-widest transition-colors",
+                              isMember ? "text-stone-900 font-bold" : "text-stone-400 group-hover:text-stone-600"
+                            )}>Member</span>
+                          </label>
+                          
+                          {isUpdating === user.username && (
+                            <span className="absolute right-4 text-[8px] font-mono text-stone-400 animate-pulse uppercase">Syncing...</span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -172,8 +195,6 @@ const Admin = () => {
               size="sm"
               disabled={!paginationToken || isLoading}
               onClick={() => {
-                // This would need a history stack for true "back" pagination in Cognito
-                // For simplicity, just clearing and reloading for now
                 loadUsers();
                 setPaginationToken(null);
               }}
