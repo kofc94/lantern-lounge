@@ -8,9 +8,10 @@ resource "aws_apigatewayv2_api" "calendar_api" {
     allow_origins = [
       "https://${local.www_domain_name}",
       "https://${local.domain_name}",
-      "http://localhost:8080" # For local testing
+      "http://localhost:5173",
+      "http://localhost:8080"
     ]
-    allow_methods = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    allow_methods = ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
     allow_headers = ["Content-Type", "Authorization", "X-Amz-Date", "X-Api-Key", "X-Amz-Security-Token"]
     max_age       = 300
   }

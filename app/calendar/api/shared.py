@@ -130,7 +130,8 @@ def get_user_info(event: LambdaEvent) -> UserContext:
         claims = authorizer.get('claims', {})
 
     if claims:
-        # Now using 'profile' attribute for role logic
+        # derive role from 'profile' attribute
+        # In Cognito, custom/standard attributes in ID Token are just top-level claims
         role = claims.get('profile', 'limited')
         
         return UserContext(

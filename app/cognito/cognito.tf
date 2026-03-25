@@ -126,12 +126,14 @@ resource "aws_cognito_user_pool_client" "calendar_app" {
   read_attributes = [
     "email",
     "email_verified",
-    "name"
+    "name",
+    "profile"
   ]
 
   write_attributes = [
     "email",
-    "name"
+    "name",
+    "profile"
   ]
 
   # Explicit auth flows

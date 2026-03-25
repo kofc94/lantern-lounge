@@ -65,8 +65,11 @@ resource "aws_iam_role_policy" "post_confirmation_cognito" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Effect   = "Allow"
-      Action   = "cognito-idp:AdminAddUserToGroup"
+      Effect = "Allow"
+      Action = [
+        "cognito-idp:AdminAddUserToGroup",
+        "cognito-idp:AdminUpdateUserAttributes"
+      ]
       Resource = aws_cognito_user_pool.calendar_users.arn
     }]
   })
@@ -145,7 +148,8 @@ resource "aws_iam_role_policy" "user_management_cognito" {
           "cognito-idp:ListUsers",
           "cognito-idp:AdminListGroupsForUser",
           "cognito-idp:AdminAddUserToGroup",
-          "cognito-idp:AdminRemoveUserFromGroup"
+          "cognito-idp:AdminRemoveUserFromGroup",
+          "cognito-idp:AdminUpdateUserAttributes"
         ]
         Resource = aws_cognito_user_pool.calendar_users.arn
       }

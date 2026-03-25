@@ -39,20 +39,12 @@ const Admin = () => {
     }
   }, [isAdmin]);
 
-  const handleUpdate = async (username, currentProfile, action, value) => {
+  const handleUpdate = async (username, newProfile) => {
     try {
       setIsUpdating(username);
       setError(null);
       setSuccess(null);
       const authToken = await getToken();
-
-      let newProfile = currentProfile;
-
-      if (action === 'toggle_admin') {
-        newProfile = value ? 'admin' : 'member'; // If removing admin, default back to member
-      } else if (action === 'set_membership') {
-        newProfile = value;
-      }
 
       await updateUserRole(username, newProfile, authToken);
       
@@ -108,89 +100,61 @@ const Admin = () => {
               <tr>
                 <th className="px-6 py-4 text-left text-xs font-mono text-[#a69681] uppercase tracking-[0.2em] font-bold">User</th>
                 <th className="px-6 py-4 text-left text-xs font-mono text-[#a69681] uppercase tracking-[0.2em] font-bold">Email</th>
-                <th className="px-6 py-4 text-center text-xs font-mono text-[#a69681] uppercase tracking-[0.2em] font-bold">Admin</th>
-                <th className="px-6 py-4 text-center text-xs font-mono text-[#a69681] uppercase tracking-[0.2em] font-bold">Membership</th>
+                <th className="px-6 py-4 text-center text-xs font-mono text-[#a69681] uppercase tracking-[0.2em] font-bold">Registry Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-100 bg-[#fffcf7]">
               {isLoading ? (
                 <tr>
-                  <td colSpan="4" className="px-6 py-20 text-center text-stone-400 italic">Consulting the archives...</td>
+                  <td colSpan="3" className="px-6 py-20 text-center text-stone-400 italic">Consulting the archives...</td>
                 </tr>
               ) : users.length === 0 ? (
                 <tr>
-                  <td colSpan="4" className="px-6 py-20 text-center text-stone-400 italic">No users found.</td>
+                  <td colSpan="3" className="px-6 py-20 text-center text-stone-400 italic">No users found.</td>
                 </tr>
               ) : (
-                users.map((user) => {
-                  const isUserAdmin = user.profile === 'admin';
-                  const isMember = user.profile === 'member';
-                  const isLimited = user.profile === 'limited';
-
-                  return (
-                    <tr key={user.username} className="hover:bg-stone-50/50 transition-colors">
-                      <td className="px-6 py-5">
-                        <div className="font-serif text-neutral-dark font-bold">{user.name || 'Anonymous'}</div>
-                        <div className="text-xs font-mono text-stone-400">{user.username}</div>
-                      </td>
-                      <td className="px-6 py-5 text-stone-600 font-serif">{user.email}</td>
-                      
-                      {/* Admin Column */}
-                      <td className="px-6 py-5 text-center">
-                        <div className="flex justify-center">
-                          <input 
-                            type="checkbox"
-                            checked={isUserAdmin}
-                            onChange={(e) => handleUpdate(user.username, user.profile, 'toggle_admin', e.target.checked)}
-                            disabled={isUpdating === user.username}
-                            className="w-5 h-5 accent-primary border-stone-300 rounded focus:ring-primary cursor-pointer"
-                          />
-                        </div>
-                      </td>
-
-                      {/* Membership Column */}
-                      <td className="px-6 py-5">
-                        <div className="flex justify-center items-center space-x-6">
-                          <label className="flex items-center space-x-2 cursor-pointer group">
+                users.map((user) => (
+                  <tr key={user.username} className="hover:bg-stone-50/50 transition-colors">
+                    <td className="px-6 py-5">
+                      <div className="font-serif text-neutral-dark font-bold">{user.name || 'Anonymous'}</div>
+                      <div className="text-xs font-mono text-stone-400">{user.username}</div>
+                    </td>
+                    <td className="px-6 py-5 text-stone-600 font-serif">{user.email}</td>
+                    
+                    <td className="px-6 py-5">
+                      <div className="flex justify-center items-center space-x-8">
+                        {['limited', 'member', 'admin'].map((role) => (
+                          <label key={role} className="flex items-center space-x-2 cursor-pointer group">
                             <input 
                               type="radio"
-                              name={`membership-${user.username}`}
-                              value="limited"
-                              checked={isLimited}
-                              onChange={() => handleUpdate(user.username, user.profile, 'set_membership', 'limited')}
-                              disabled={isUpdating === user.username || isUserAdmin}
-                              className="w-4 h-4 accent-stone-800 border-stone-300 focus:ring-stone-800 cursor-pointer"
+                              name={`role-${user.username}`}
+                              value={role}
+                              checked={user.profile === role}
+                              onChange={() => handleUpdate(user.username, role)}
+                              disabled={isUpdating === user.username}
+                              className={clsx(
+                                "w-4 h-4 border-stone-300 focus:ring-offset-0 cursor-pointer",
+                                role === 'admin' ? "accent-red-600" : "accent-stone-800"
+                              )}
                             />
                             <span className={clsx(
                               "text-xs font-mono uppercase tracking-widest transition-colors",
-                              isLimited ? "text-stone-900 font-bold" : "text-stone-400 group-hover:text-stone-600"
-                            )}>Limited</span>
+                              user.profile === role 
+                                ? (role === 'admin' ? "text-red-700 font-bold" : "text-stone-900 font-bold")
+                                : "text-stone-400 group-hover:text-stone-600"
+                            )}>
+                              {role}
+                            </span>
                           </label>
-
-                          <label className="flex items-center space-x-2 cursor-pointer group">
-                            <input 
-                              type="radio"
-                              name={`membership-${user.username}`}
-                              value="member"
-                              checked={isMember}
-                              onChange={() => handleUpdate(user.username, user.profile, 'set_membership', 'member')}
-                              disabled={isUpdating === user.username || isUserAdmin}
-                              className="w-4 h-4 accent-stone-800 border-stone-300 focus:ring-stone-800 cursor-pointer"
-                            />
-                            <span className={clsx(
-                              "text-xs font-mono uppercase tracking-widest transition-colors",
-                              isMember ? "text-stone-900 font-bold" : "text-stone-400 group-hover:text-stone-600"
-                            )}>Member</span>
-                          </label>
-                          
-                          {isUpdating === user.username && (
-                            <span className="absolute right-4 text-[8px] font-mono text-stone-400 animate-pulse uppercase">Syncing...</span>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
+                        ))}
+                        
+                        {isUpdating === user.username && (
+                          <span className="absolute right-4 text-[8px] font-mono text-stone-400 animate-pulse uppercase">Syncing...</span>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>
