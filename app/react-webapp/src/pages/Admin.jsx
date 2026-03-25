@@ -8,7 +8,8 @@ import clsx from 'clsx';
  * Admin Page - User management and profile role assignment
  */
 const Admin = () => {
-  const { getToken, isAdmin } = useAuth();
+  const { getToken, profile } = useAuth();
+  const isAdmin = profile === 'admin';
   const [users, setUsers] = useState([]);
   const [paginationToken, setPaginationToken] = useState(null);
   const [nextPaginationToken, setNextPaginationToken] = useState(null);

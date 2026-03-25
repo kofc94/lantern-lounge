@@ -11,7 +11,9 @@ import clsx from 'clsx';
  * Events Page - Event calendar and management (API-based)
  */
 const Events = () => {
-  const { isAuthenticated, isAdmin, isLimited, currentUser } = useAuth();
+  const { isAuthenticated, profile, currentUser } = useAuth();
+  const isAdmin = profile === 'admin';
+  const isLimited = profile === 'limited';
   
   const {
     events,

@@ -110,9 +110,7 @@ export const AuthProvider = ({ children }) => {
   const value = {
     currentUser,
     isAuthenticated: !!currentUser,
-    isLimited: (currentUser?.profile === 'limited') || (!currentUser?.profile),
-    isMember: currentUser?.profile === 'member',
-    isAdmin: currentUser?.profile === 'admin',
+    profile: currentUser?.profile || 'limited',
     isLoading,
     error,
     signIn,

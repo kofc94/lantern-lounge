@@ -13,7 +13,8 @@ const Navbar = () => {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
   const location = useLocation();
-  const { currentUser, isAuthenticated, signOut, isAdmin } = useAuth();
+  const { currentUser, isAuthenticated, signOut, profile } = useAuth();
+  const isAdmin = profile === 'admin';
   const dropdownRef = useRef(null);
 
   const navLinks = [
@@ -145,7 +146,7 @@ const Navbar = () => {
                       <div className="flex items-center gap-2">
                         <div className={clsx(
                           "w-2 h-2 rounded-full",
-                          currentUser?.groups?.includes('admin') ? "bg-primary" : "bg-accent-gold"
+                          isAdmin ? "bg-primary" : "bg-accent-gold"
                         )} />
                         <span className="text-sm font-bold text-neutral-dark italic">
                           {userType}
