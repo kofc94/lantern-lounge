@@ -167,20 +167,20 @@ const Admin = () => {
                               onChange={() => handleUpdate(user, 'set_membership', 'limited')}
                               disabled={isUpdating === user.username}
                               className="w-4 h-4 accent-stone-800 border-stone-300 focus:ring-stone-800 cursor-pointer"
-                            />
-                            <span className={clsx(
+                              />
+                              <span className={clsx(
                               "text-xs font-mono uppercase tracking-widest transition-colors",
                               isLimited ? "text-stone-900 font-bold" : "text-stone-400 group-hover:text-stone-600"
-                            )}>Limited</span>
-                          </label>
+                              )}>Limited</span>
+                              </label>
 
-                          <label className="flex items-center space-x-2 cursor-pointer group">
-                            <input 
+                              <label className="flex items-center space-x-2 cursor-pointer group">
+                              <input 
                               type="radio"
                               name={`membership-${user.username}`}
                               value="member"
                               checked={isMember}
-                              onChange={() => handleUpdate(user.username, 'set_membership', 'member')}
+                              onChange={() => handleUpdate(user, 'set_membership', 'member')}
                               disabled={isUpdating === user.username}
                               className="w-4 h-4 accent-stone-800 border-stone-300 focus:ring-stone-800 cursor-pointer"
                             />
