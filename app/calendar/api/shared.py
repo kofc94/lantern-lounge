@@ -118,15 +118,28 @@ def get_user_info(event: LambdaEvent) -> UserContext:
     """Extract authentication status and user info from event."""
     request_context = event.get('requestContext', {})
     authorizer = request_context.get('authorizer', {})
+    
+    # Try HTTP API v2 (JWT)
     jwt = authorizer.get('jwt', {})
-    claims = jwt.get('claims', {})
+    claims = jwt.get('claims')
+    
+    # Try REST API or alternative mappings
+    if not claims:
+        claims = authorizer.get('claims', {})
 
     if claims:
-        groups = claims.get('cognito:groups', [])
-        if isinstance(groups, str):
-            # API Gateway serializes JWT array claims as space-separated strings
-            groups = groups.split()
-
+        # Extract groups - handle both list and delimited string formats.
+        # API Gateway serializes JWT array claims differently depending on version/config.
+        # Comma-separated is common for REST APIs, Space-separated for some HTTP API setups.
+        groups_raw = claims.get('cognito:groups')
+        groups: List[str] = []
+        
+        if isinstance(groups_raw, list):
+            groups = [str(g) for g in groups_raw]
+        elif isinstance(groups_raw, str):
+            # Replace common delimiters with space and split
+            groups = groups_raw.strip('[]').split()
+        
         return UserContext(
             is_authenticated=True,
             is_admin="admin" in groups,
