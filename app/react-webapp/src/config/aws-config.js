@@ -2,8 +2,8 @@
 
 const CONFIG = {
   // API Gateway endpoints
-  apiEndpoint: import.meta.env.VITE_API_ENDPOINT ?? (import.meta.env.DEV ? 'http://localhost:4566/restapis/local/local/_user_request_' : ''),
-  usersApiEndpoint: import.meta.env.VITE_USERS_API_ENDPOINT ?? '',
+  apiEndpoint: import.meta.env.VITE_API_ENDPOINT || (import.meta.env.DEV ? 'http://localhost:4566' : ''),
+  usersApiEndpoint: import.meta.env.VITE_USERS_API_ENDPOINT || (import.meta.env.DEV ? 'http://localhost:4566' : ''),
 
   // Cognito User Pool Configuration
   cognito: {
