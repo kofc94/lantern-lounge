@@ -25,6 +25,12 @@ def handler(event: LambdaEvent, context: LambdaContext) -> LambdaResponse:
     if not user.is_authenticated:
         return create_response(401, {'error': 'Unauthorized'})
 
+    if user.is_limited:
+        return create_response(403, {
+            'error': 'Forbidden',
+            'message': 'Your account is pending verification and cannot create items yet.'
+        })
+
     try:
         body: Dict[str, Any] = json.loads(event.get('body', '{}'))
 

@@ -1,0 +1,13 @@
+[project]
+name = "lantern-lounge"
+version = "0.1.0"
+description = "Member association website for The Lantern Lounge"
+dependencies = [
+    "boto3>=1.26.0",
+    "aws-lambda-typing>=2.18.0",
+    "python-dateutil>=2.8.2",
+]
+
+[tool.pyright]
+extraPaths = ["app/calendar/api"]
+venv = ".venv"

@@ -17,10 +17,16 @@ def handler(event: LambdaEvent, context: LambdaContext) -> LambdaResponse:
     Delete a calendar item. Requires authentication.
     Users can only delete items they created.
     """
-    user: UserContext = get_user_info(event)
+    user = get_user_info(event)
     
     if not user.is_authenticated:
         return create_response(401, {'error': 'Unauthorized'})
+
+    if user.is_limited:
+        return create_response(403, {
+            'error': 'Forbidden',
+            'message': 'Your account is pending verification and cannot delete items yet.'
+        })
 
     try:
         # Get item ID from path parameters

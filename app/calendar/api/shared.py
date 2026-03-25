@@ -35,6 +35,7 @@ class UserContext:
     """Authentication context for the current user."""
     is_authenticated: bool
     is_admin: bool = False
+    is_limited: bool = False
     email: Optional[str] = None
     user_id: Optional[str] = None
 
@@ -131,18 +132,20 @@ def get_user_info(event: LambdaEvent) -> UserContext:
         # Extract groups - handle both list and delimited string formats.
         # API Gateway serializes JWT array claims differently depending on version/config.
         # Comma-separated is common for REST APIs, Space-separated for some HTTP API setups.
-        groups_raw = claims.get('cognito:groups')
+        groups_raw = claims.get('cognito:groups') or claims.get('groups') or []
         groups: List[str] = []
         
         if isinstance(groups_raw, list):
             groups = [str(g) for g in groups_raw]
         elif isinstance(groups_raw, str):
             # Replace common delimiters with space and split
-            groups = groups_raw.strip('[]').split()
+            # Also strip potential brackets if serialized as "[admin, member]"
+            groups = groups_raw.replace(',', ' ').replace('[', '').replace(']', '').split()
         
         return UserContext(
             is_authenticated=True,
             is_admin="admin" in groups,
+            is_limited="limited" in groups,
             email=cast(Optional[str], claims.get('email', 'unknown')),
             user_id=cast(Optional[str], claims.get('sub'))
         )

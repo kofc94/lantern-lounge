@@ -150,10 +150,17 @@ resource "aws_cognito_user_pool_domain" "calendar_domain" {
 
 # ── Groups ────────────────────────────────────────────────────────────────────
 
+resource "aws_cognito_user_group" "limited" {
+  name         = "limited"
+  user_pool_id = aws_cognito_user_pool.calendar_users.id
+  description  = "New or unverified users — read-only access granted on first sign-in"
+  precedence   = 20
+}
+
 resource "aws_cognito_user_group" "member" {
   name         = "member"
   user_pool_id = aws_cognito_user_pool.calendar_users.id
-  description  = "Standard club members — granted automatically on first sign-in"
+  description  = "Verified club members — can propose calendar events"
   precedence   = 10
 }
 

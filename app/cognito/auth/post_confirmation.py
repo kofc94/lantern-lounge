@@ -11,11 +11,11 @@ USER_POOL_ID: str = os.environ["USER_POOL_ID"]
 
 def handler(event: LambdaEvent, context: LambdaContext) -> LambdaEvent:
     """
-    Post-confirmation trigger: auto-assigns users to the 'member' group.
+    Post-confirmation trigger: auto-assigns users to the 'limited' group.
     """
     cognito.admin_add_user_to_group(
-        UserPoolId=USER_POOL_ID,
+        UserPoolId=event["userPoolId"],
         Username=event["userName"],
-        GroupName="member",
+        GroupName="limited",
     )
     return event
