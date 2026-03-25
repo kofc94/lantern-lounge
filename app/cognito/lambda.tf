@@ -12,6 +12,14 @@ data "archive_file" "user_management" {
   output_path = "${path.module}/user_management.zip"
 }
 
+# ── User Pool Lookup ─────────────────────────────────────────────────────────
+
+# Using a data source breaks the circular dependency between the User Pool
+# (which needs Lambda ARNs for triggers) and the Lambdas (which need the Pool ID).
+data "aws_cognito_user_pools" "main" {
+  name = aws_cognito_user_pool.calendar_users.name
+}
+
 # ── Post-confirmation Lambda (auto-assigns users to the limited group) ────────
 
 resource "aws_iam_role" "post_confirmation_role" {
@@ -73,11 +81,8 @@ resource "aws_lambda_function" "post_confirmation" {
   runtime          = "python3.11"
   timeout          = 10
 
-  environment {
-    variables = {
-      USER_POOL_ID = aws_cognito_user_pool.calendar_users.id
-    }
-  }
+  # USER_POOL_ID environment variable is removed to break circular dependency.
+  # The Lambda extracts the userPoolId directly from the trigger event.
 
   tags = {
     Name        = "Post Confirmation"
@@ -159,7 +164,7 @@ resource "aws_lambda_function" "user_management" {
 
   environment {
     variables = {
-      USER_POOL_ID = aws_cognito_user_pool.calendar_users.id
+      USER_POOL_ID = tolist(data.aws_cognito_user_pools.main.ids)[0]
     }
   }
 
