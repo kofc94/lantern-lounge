@@ -11,8 +11,7 @@ import clsx from 'clsx';
  * Events Page - Event calendar and management (API-based)
  */
 const Events = () => {
-  const { isAuthenticated, currentUser } = useAuth();
-  const isAdmin = currentUser?.groups?.includes('admin');
+  const { isAuthenticated, isAdmin, isLimited, currentUser } = useAuth();
   
   const {
     events,
@@ -261,16 +260,15 @@ const Events = () => {
                 >
                   Today
                 </Button>
-                {isAuthenticated && (
-                  <Button 
-                    variant="primary" 
+                {isAuthenticated && !isLimited && (
+                  <Button
+                    variant="primary"
                     onClick={handleCreateEvent}
                     className="!bg-[#2d241e] !text-[#f2eadd] shadow-2xl hover:!bg-black transition-colors"
                   >
                     + New Event
                   </Button>
-                )}
-              </div>
+                )}              </div>
             </div>
 
             {/* Info Banner - Tea-Stained Style */}
