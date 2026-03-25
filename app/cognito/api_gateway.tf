@@ -11,7 +11,7 @@ resource "aws_apigatewayv2_api" "users_api" {
       "http://localhost:5173", # Vite default
       "http://localhost:8080"  # Alternative local
     ]
-    allow_methods = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    allow_methods = ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"]
     allow_headers = ["Content-Type", "Authorization"]
     max_age       = 300
   }
@@ -62,8 +62,8 @@ resource "aws_apigatewayv2_route" "get_users" {
   authorizer_id      = aws_apigatewayv2_authorizer.users_cognito.id
 }
 
-# Integration: POST /users/update-group
-resource "aws_apigatewayv2_integration" "update_user_group" {
+# Integration: PATCH /users/{username}
+resource "aws_apigatewayv2_integration" "update_user_groups" {
   api_id                 = aws_apigatewayv2_api.users_api.id
   integration_type       = "AWS_PROXY"
   integration_uri        = aws_lambda_function.user_management.invoke_arn
@@ -71,11 +71,11 @@ resource "aws_apigatewayv2_integration" "update_user_group" {
   payload_format_version = "2.0"
 }
 
-# Route: POST /users/update-group
-resource "aws_apigatewayv2_route" "update_user_group" {
+# Route: PATCH /users/{username}
+resource "aws_apigatewayv2_route" "update_user_groups" {
   api_id    = aws_apigatewayv2_api.users_api.id
-  route_key = "POST /users/update-group"
-  target    = "integrations/${aws_apigatewayv2_integration.update_user_group.id}"
+  route_key = "PATCH /users/{username}"
+  target    = "integrations/${aws_apigatewayv2_integration.update_user_groups.id}"
 
   authorization_type = "JWT"
   authorizer_id      = aws_apigatewayv2_authorizer.users_cognito.id

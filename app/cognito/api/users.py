@@ -7,11 +7,13 @@ from shared import LambdaEvent, LambdaContext, LambdaResponse, get_user_info, cr
 cognito = boto3.client('cognito-idp')
 USER_POOL_ID = os.environ.get('USER_POOL_ID')
 
+MANAGED_GROUPS = {'admin', 'member', 'limited'}
+
 def handler(event: LambdaEvent, context: LambdaContext) -> LambdaResponse:
     """
     Handle user listing and group updates.
     GET /users - List users with pagination
-    POST /users/update-group - Update user's group
+    PATCH /users/{username} - Update user's managed groups
     """
     user = get_user_info(event)
     
@@ -19,13 +21,14 @@ def handler(event: LambdaEvent, context: LambdaContext) -> LambdaResponse:
     if not user.is_authenticated or not user.is_admin:
         return create_response(403, {'error': 'Forbidden', 'message': 'Admin privileges required'})
 
-    http_method = event.get('requestContext', {}).get('http', {}).get('method', 'GET')
+    request_context = event.get('requestContext', {})
+    http_method = request_context.get('http', {}).get('method', 'GET')
     
     try:
         if http_method == 'GET':
             return list_users(event)
-        elif http_method == 'POST':
-            return update_user_group(event)
+        elif http_method == 'PATCH':
+            return update_user_groups(event)
         else:
             return create_response(405, {'error': 'Method not allowed'})
     except Exception as e:
@@ -76,67 +79,52 @@ def list_users(event: LambdaEvent) -> LambdaResponse:
         'paginationToken': response.get('PaginationToken')
     })
 
-def update_user_group(event: LambdaEvent) -> LambdaResponse:
-    """Update a user's group membership."""
-    body = json.loads(event.get('body', '{}'))
-    target_username = body.get('username')
+def update_user_groups(event: LambdaEvent) -> LambdaResponse:
+    """Update a user's managed group membership via PATCH."""
+    path_params = event.get('pathParameters', {}) or {}
+    target_username = path_params.get('username')
     
-    # New flexible API: supports 'group' (legacy) OR ('action' + 'value')
-    target_group = body.get('group')
-    action = body.get('action') # 'toggle_admin' or 'set_membership'
-    value = body.get('value')   # boolean for toggle_admin, string for set_membership
-
     if not target_username:
-        return create_response(400, {'error': 'Bad request', 'message': 'Username is required'})
+        return create_response(400, {'error': 'Bad request', 'message': 'Username is required in path'})
+
+    body = json.loads(event.get('body', '{}'))
+    new_groups_input = body.get('groups')
+
+    if not isinstance(new_groups_input, list):
+        return create_response(400, {'error': 'Bad request', 'message': 'Payload must contain a "groups" list'})
+
+    # Only consider groups we are allowed to manage
+    new_managed_groups = set(new_groups_input).intersection(MANAGED_GROUPS)
 
     # 1. Get current groups
     groups_response = cognito.admin_list_groups_for_user(
         UserPoolId=USER_POOL_ID,
         Username=target_username
     )
-    current_groups = [g['GroupName'] for g in groups_response.get('Groups', [])]
+    current_groups = {g['GroupName'] for g in groups_response.get('Groups', [])}
+    current_managed_groups = current_groups.intersection(MANAGED_GROUPS)
 
-    # Handle the new UI requirements: Admin checkbox + Membership radio
-    if action == 'toggle_admin':
-        if value: # Add admin
-            if 'admin' not in current_groups:
-                cognito.admin_add_user_to_group(UserPoolId=USER_POOL_ID, Username=target_username, GroupName='admin')
-        else: # Remove admin
-            if 'admin' in current_groups:
-                cognito.admin_remove_user_from_group(UserPoolId=USER_POOL_ID, Username=target_username, GroupName='admin')
-        return create_response(200, {'message': f'Admin status updated for {target_username}'})
+    # 2. Identify changes
+    groups_to_add = new_managed_groups - current_managed_groups
+    groups_to_remove = current_managed_groups - new_managed_groups
 
-    elif action == 'set_membership':
-        if value not in ['member', 'limited']:
-            return create_response(400, {'error': 'Bad request', 'message': 'Membership must be member or limited'})
-        
-        other = 'limited' if value == 'member' else 'member'
-        
-        # Add to new membership group
-        if value not in current_groups:
-            cognito.admin_add_user_to_group(UserPoolId=USER_POOL_ID, Username=target_username, GroupName=value)
-        
-        # Remove from old membership group
-        if other in current_groups:
-            cognito.admin_remove_user_from_group(UserPoolId=USER_POOL_ID, Username=target_username, GroupName=other)
-            
-        return create_response(200, {'message': f'Membership for {target_username} set to {value}'})
+    # 3. Apply changes
+    for group_name in groups_to_add:
+        cognito.admin_add_user_to_group(
+            UserPoolId=USER_POOL_ID,
+            Username=target_username,
+            GroupName=group_name
+        )
 
-    # Legacy support for the simple dropdown
-    elif target_group:
-        valid_groups = ['admin', 'member', 'limited']
-        if target_group not in valid_groups:
-            return create_response(400, {'error': 'Bad request', 'message': f'Invalid group. Must be one of: {valid_groups}'})
+    for group_name in groups_to_remove:
+        cognito.admin_remove_user_from_group(
+            UserPoolId=USER_POOL_ID,
+            Username=target_username,
+            GroupName=group_name
+        )
 
-        # Remove from all other target groups to ensure mutual exclusivity (legacy behavior)
-        for g in valid_groups:
-            if g in current_groups and g != target_group:
-                cognito.admin_remove_user_from_group(UserPoolId=USER_POOL_ID, Username=target_username, GroupName=g)
-
-        # Add to the new group if not already there
-        if target_group not in current_groups:
-            cognito.admin_add_user_to_group(UserPoolId=USER_POOL_ID, Username=target_username, GroupName=target_group)
-
-        return create_response(200, {'message': f'User {target_username} updated to group {target_group}'})
-
-    return create_response(400, {'error': 'Bad request', 'message': 'Missing action or group'})
+    return create_response(200, {
+        'message': f'Updated groups for {target_username}',
+        'added': list(groups_to_add),
+        'removed': list(groups_to_remove)
+    })

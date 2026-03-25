@@ -170,30 +170,22 @@ export const fetchUsers = async (authToken, paginationToken = null) => {
 };
 
 /**
- * Update a user's group membership (Admin only)
+ * Update a user's managed groups (Admin only)
  * @param {string} username - Target username
- * @param {string|Object} groupOrAction - Target group ('admin', 'member', 'limited') OR { action, value }
+ * @param {string[]} groups - List of managed groups ('admin', 'member', 'limited')
  * @param {string} authToken - JWT auth token
  */
-export const updateUserGroup = async (username, groupOrAction, authToken) => {
+export const updateUserGroups = async (username, groups, authToken) => {
   if (!authToken) throw new Error('Authentication required');
 
-  const body = { username };
-  if (typeof groupOrAction === 'object') {
-    body.action = groupOrAction.action;
-    body.value = groupOrAction.value;
-  } else {
-    body.group = groupOrAction;
-  }
-
   try {
-    const response = await fetch(`${CONFIG.usersApiEndpoint}/users/update-group`, {
-      method: 'POST',
+    const response = await fetch(`${CONFIG.usersApiEndpoint}/users/${username}`, {
+      method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${authToken}`
       },
-      body: JSON.stringify(body)
+      body: JSON.stringify({ groups })
     });
 
     if (!response.ok) {
@@ -202,7 +194,7 @@ export const updateUserGroup = async (username, groupOrAction, authToken) => {
     }
     return await response.json();
   } catch (error) {
-    console.error('Error updating user group:', error);
+    console.error('Error updating user groups:', error);
     throw error;
   }
 };
@@ -213,5 +205,5 @@ export default {
   updateEvent,
   deleteEvent,
   fetchUsers,
-  updateUserGroup
+  updateUserGroups
 };

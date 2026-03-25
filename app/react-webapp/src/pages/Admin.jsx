@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { fetchUsers, updateUserGroup } from '../services/api';
+import { fetchUsers, updateUserGroups } from '../services/api';
 import Button from '../components/common/Button';
 import clsx from 'clsx';
 
@@ -38,13 +38,30 @@ const Admin = () => {
     }
   }, [isAdmin]);
 
-  const handleUpdate = async (username, action, value) => {
+  const handleUpdate = async (user, action, value) => {
     try {
-      setIsUpdating(username);
+      setIsUpdating(user.username);
       setError(null);
       setSuccess(null);
       const authToken = await getToken();
-      await updateUserGroup(username, { action, value }, authToken);
+
+      // Managed groups: 'admin', 'member', 'limited'
+      const currentManaged = user.groups.filter(g => ['admin', 'member', 'limited'].includes(g));
+      let newManaged = [...currentManaged];
+
+      if (action === 'toggle_admin') {
+        if (value) {
+          if (!newManaged.includes('admin')) newManaged.push('admin');
+        } else {
+          newManaged = newManaged.filter(g => g !== 'admin');
+        }
+      } else if (action === 'set_membership') {
+        // Membership is mutually exclusive: member OR limited
+        newManaged = newManaged.filter(g => g !== 'member' && g !== 'limited');
+        newManaged.push(value);
+      }
+
+      await updateUserGroups(user.username, newManaged, authToken);
       
       setSuccess(`User status updated successfully.`);
       // Refresh user list to show new groups
@@ -116,7 +133,6 @@ const Admin = () => {
                   const isUserAdmin = user.groups.includes('admin');
                   const isMember = user.groups.includes('member');
                   const isLimited = user.groups.includes('limited');
-                  const currentMembership = isMember ? 'member' : 'limited';
 
                   return (
                     <tr key={user.username} className="hover:bg-stone-50/50 transition-colors">
@@ -132,7 +148,7 @@ const Admin = () => {
                           <input 
                             type="checkbox"
                             checked={isUserAdmin}
-                            onChange={(e) => handleUpdate(user.username, 'toggle_admin', e.target.checked)}
+                            onChange={(e) => handleUpdate(user, 'toggle_admin', e.target.checked)}
                             disabled={isUpdating === user.username}
                             className="w-5 h-5 accent-primary border-stone-300 rounded focus:ring-primary cursor-pointer"
                           />
@@ -148,7 +164,7 @@ const Admin = () => {
                               name={`membership-${user.username}`}
                               value="limited"
                               checked={isLimited}
-                              onChange={() => handleUpdate(user.username, 'set_membership', 'limited')}
+                              onChange={() => handleUpdate(user, 'set_membership', 'limited')}
                               disabled={isUpdating === user.username}
                               className="w-4 h-4 accent-stone-800 border-stone-300 focus:ring-stone-800 cursor-pointer"
                             />
