@@ -1,3 +1,8 @@
+output "users_api_endpoint" {
+  description = "Users API Gateway Endpoint"
+  value       = aws_apigatewayv2_api.users_api.api_endpoint
+}
+
 output "cognito_user_pool_id" {
   description = "Cognito User Pool ID"
   value       = aws_cognito_user_pool.calendar_users.id

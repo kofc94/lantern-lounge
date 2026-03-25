@@ -13,7 +13,7 @@ const Navbar = () => {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
   const location = useLocation();
-  const { currentUser, isAuthenticated, signOut } = useAuth();
+  const { currentUser, isAuthenticated, signOut, isAdmin } = useAuth();
   const dropdownRef = useRef(null);
 
   const navLinks = [
@@ -22,6 +22,10 @@ const Navbar = () => {
     { path: '/events', label: 'Events' },
     { path: '/about', label: 'About' },
   ];
+
+  if (isAdmin) {
+    navLinks.push({ path: '/admin', label: 'Admin' });
+  }
 
   const isActive = (path) => {
     return location.pathname === path;
@@ -65,7 +69,7 @@ const Navbar = () => {
   }, [isUserDropdownOpen]);
 
   // Determine user type
-  const userType = currentUser?.groups?.includes('admin') ? 'Administrator' : 'Club Member';
+  const userType = isAdmin ? 'Administrator' : 'Club Member';
 
   return (
     <nav className="fixed top-0 w-full bg-dark/90 backdrop-blur-md z-50 border-b border-white/5">

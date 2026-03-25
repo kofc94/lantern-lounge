@@ -1,8 +1,9 @@
 // AWS Cognito and API Configuration
 
 const CONFIG = {
-  // API Gateway endpoint — default to LocalStack if in development and no env var provided
+  // API Gateway endpoints
   apiEndpoint: import.meta.env.VITE_API_ENDPOINT ?? (import.meta.env.DEV ? 'http://localhost:4566/restapis/local/local/_user_request_' : ''),
+  usersApiEndpoint: import.meta.env.VITE_USERS_API_ENDPOINT ?? '',
 
   // Cognito User Pool Configuration
   cognito: {

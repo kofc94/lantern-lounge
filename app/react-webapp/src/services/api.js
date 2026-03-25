@@ -137,9 +137,73 @@ export const deleteEvent = async (eventId, authToken) => {
   }
 };
 
+/**
+ * Fetch all users (Admin only)
+ * @param {string} authToken - JWT auth token
+ * @param {string} paginationToken - Optional token for next page
+ * @returns {Promise<Object>} - Users and next pagination token
+ */
+export const fetchUsers = async (authToken, paginationToken = null) => {
+  if (!authToken) throw new Error('Authentication required');
+
+  try {
+    let url = `${CONFIG.usersApiEndpoint}/users`;
+    if (paginationToken) {
+      url += `?paginationToken=${encodeURIComponent(paginationToken)}`;
+    }
+
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${authToken}`
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    throw error;
+  }
+};
+
+/**
+ * Update a user's group membership (Admin only)
+ * @param {string} username - Target username
+ * @param {string} group - Target group ('admin', 'member', 'limited')
+ * @param {string} authToken - JWT auth token
+ */
+export const updateUserGroup = async (username, group, authToken) => {
+  if (!authToken) throw new Error('Authentication required');
+
+  try {
+    const response = await fetch(`${CONFIG.usersApiEndpoint}/users/update-group`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      },
+      body: JSON.stringify({ username, group })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error updating user group:', error);
+    throw error;
+  }
+};
+
 export default {
   fetchEvents,
   createEvent,
   updateEvent,
-  deleteEvent
+  deleteEvent,
+  fetchUsers,
+  updateUserGroup
 };
