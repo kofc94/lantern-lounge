@@ -6,6 +6,7 @@ import JoinUs from './pages/JoinUs';
 import Events from './pages/Events';
 import About from './pages/About';
 import Admin from './pages/Admin';
+import Verify from './pages/Verify';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 
 /**
@@ -22,6 +23,7 @@ function App() {
             <Route path="events" element={<Events />} />
             <Route path="about" element={<About />} />
             <Route path="admin" element={<Admin />} />
+            <Route path="verify" element={<Verify />} />
             <Route path="privacy-policy" element={<PrivacyPolicy />} />
             {/* Redirect old calendar route to events */}
             <Route path="calendar" element={<Navigate to="/events" replace />} />

@@ -12,6 +12,12 @@ data "archive_file" "user_management" {
   output_path = "${path.module}/user_management.zip"
 }
 
+data "archive_file" "custom_message" {
+  type        = "zip"
+  source_file = "${path.module}/auth/custom_message.py"
+  output_path = "${path.module}/custom_message.zip"
+}
+
 # ── User Pool Lookup ─────────────────────────────────────────────────────────
 
 # Using a data source breaks the circular dependency between the User Pool
@@ -98,6 +104,69 @@ resource "aws_lambda_permission" "cognito_post_confirmation" {
   statement_id  = "AllowCognitoInvoke"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.post_confirmation.function_name
+  principal     = "cognito-idp.amazonaws.com"
+  source_arn    = aws_cognito_user_pool.calendar_users.arn
+}
+
+# ── Custom Message Lambda (Sends custom verification links) ───────────────────
+
+resource "aws_iam_role" "custom_message_role" {
+  name = "${var.project_name}-custom-message-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "custom_message_basic" {
+  name = "${var.project_name}-custom-message-basic"
+  role = aws_iam_role.custom_message_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ]
+      Resource = "*"
+    }]
+  })
+}
+
+resource "aws_lambda_function" "custom_message" {
+  filename         = data.archive_file.custom_message.output_path
+  function_name    = "${var.project_name}-custom-message"
+  role             = aws_iam_role.custom_message_role.arn
+  handler          = "custom_message.handler"
+  source_code_hash = data.archive_file.custom_message.output_base64sha256
+  runtime          = "python3.11"
+  timeout          = 10
+
+  environment {
+    variables = {
+      WEBSITE_URL = "https://www.lanternlounge.org"
+    }
+  }
+
+  tags = {
+    Name        = "Custom Message"
+    Environment = var.environment
+    Project     = var.project_name
+  }
+}
+
+resource "aws_lambda_permission" "cognito_custom_message" {
+  statement_id  = "AllowCognitoInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.custom_message.function_name
   principal     = "cognito-idp.amazonaws.com"
   source_arn    = aws_cognito_user_pool.calendar_users.arn
 }

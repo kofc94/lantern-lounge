@@ -84,6 +84,7 @@ resource "aws_cognito_user_pool" "calendar_users" {
 
   lambda_config {
     post_confirmation = aws_lambda_function.post_confirmation.arn
+    custom_message     = aws_lambda_function.custom_message.arn
   }
 
   tags = {

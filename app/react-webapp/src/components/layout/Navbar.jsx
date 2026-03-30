@@ -17,6 +17,15 @@ const Navbar = () => {
   const isAdmin = profile === 'admin';
   const dropdownRef = useRef(null);
 
+  // Automatically open login modal if redirected with openLogin state
+  useEffect(() => {
+    if (location.state?.openLogin && !isAuthenticated) {
+      setIsAuthModalOpen(true);
+      // Optional: Clear the state after reading it
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state, isAuthenticated]);
+
   const navLinks = [
     { path: '/', label: 'Home' },
     { path: '/join-us', label: 'Join Us' },
