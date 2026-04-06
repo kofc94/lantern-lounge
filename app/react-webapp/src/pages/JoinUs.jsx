@@ -129,7 +129,7 @@ const JoinUs = () => {
                       onClick={handleJoinClick}
                       className="!bg-primary !hover:bg-primary-hover shadow-2xl !py-6 !text-lg"
                     >
-                      Process Membership Online
+                      Online Application
                     </Button>
                     <p className="text-gray-500 text-sm text-center">
                       Applications are processed securely via Zeffy. <br />
@@ -150,7 +150,7 @@ const JoinUs = () => {
                     width: '100%',
                     height: '800px',
                   }}
-                  src="https://www.zeffy.com/embed/ticketing/lantern-lounge-associate-membership"
+                  src="https://www.zeffy.com/embed/ticketing/lexington-knights-of-columbus-members-association-memberships--2025"
                   allowPaymentRequest
                   allow="payment"
                 />
