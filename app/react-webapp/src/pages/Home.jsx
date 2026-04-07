@@ -1,8 +1,11 @@
 import { Link } from 'react-router-dom';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
+import useAuth from '../hooks/useAuth';
+import WalletCard from '../components/auth/WalletCard';
 
 const Home = () => {
+  const { user } = useAuth();
   const features = [
     {
       image: '/assets/table.png',
@@ -59,18 +62,25 @@ const Home = () => {
               <p className="text-2xl text-gray-400 font-medium mb-10 leading-relaxed max-w-2xl">
                 Lexington's <span className="text-white border-b-2 border-primary/40">coziest social club</span>. A place to unwind, connect, and enjoy the finer things with neighbors and friends.
               </p>
-              <div className="flex flex-wrap gap-4">
-                <Link to="/join-us">
-                  <Button variant="cta" className="!bg-primary !hover:bg-primary-hover shadow-2xl">
-                    Become a Member
-                  </Button>
-                </Link>
-                <Link to="/about">
-                  <Button variant="outline" className="!border-white/20 !text-white hover:!bg-white/10">
-                    Our Story
-                  </Button>
-                </Link>
-              </div>
+              
+              {user ? (
+                <div className="max-w-md">
+                  <WalletCard />
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-4">
+                  <Link to="/join-us">
+                    <Button variant="cta" className="!bg-primary !hover:bg-primary-hover shadow-2xl">
+                      Become a Member
+                    </Button>
+                  </Link>
+                  <Link to="/about">
+                    <Button variant="outline" className="!border-white/20 !text-white hover:!bg-white/10">
+                      Our Story
+                    </Button>
+                  </Link>
+                </div>
+              )}
             </div>
 
             {/* Hero Image - 40% Width with Overlap */}

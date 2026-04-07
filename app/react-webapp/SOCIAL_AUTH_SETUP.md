@@ -57,10 +57,6 @@ const CONFIG = {
 };
 ```
 
-## Local Development Note
-
-When running locally with **LocalStack** (`make local-setup`), the app currently continues to use the production Cognito User Pool for authentication. LocalStack emulation for Cognito is not enabled by default in the current `local/docker-compose.yml` to simplify first-time setup.
-
 ## Troubleshooting
 
 ### "Social sign-in is not configured yet"

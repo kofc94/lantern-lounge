@@ -1,5 +1,11 @@
 # ── Lambda Code Packaging ─────────────────────────────────────────────────────
 
+data "archive_file" "user_management" {
+  type        = "zip"
+  source_dir  = "${path.module}/api"
+  output_path = "${path.module}/user_management.zip"
+}
+
 data "archive_file" "post_confirmation" {
   type        = "zip"
   source_file = "${path.module}/auth/post_confirmation.py"
@@ -91,3 +97,167 @@ resource "aws_lambda_permission" "cognito_post_confirmation" {
   # Falls back to the resource ARN on first apply — same reasoning as the IAM policy above.
   source_arn    = try(tolist(data.aws_cognito_user_pools.main.arns)[0], aws_cognito_user_pool.calendar_users.arn)
 }
+
+data "archive_file" "validate_user" {
+  type        = "zip"
+  source_file = "${path.module}/auth/validate_user.py"
+  output_path = "${path.module}/validate_user.zip"
+}
+
+# ── Validate User Lambda (Internal use only) ──────────────────────────────────
+
+resource "aws_iam_role" "validate_user_role" {
+  name = "${var.project_name}-validate-user-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+
+  tags = {
+    Environment = var.environment
+    Project     = var.project_name
+  }
+}
+
+resource "aws_iam_role_policy_attachment" "validate_user_basic" {
+  role       = aws_iam_role.validate_user_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+resource "aws_iam_role_policy" "validate_user_cognito" {
+  name = "${var.project_name}-validate-user-cognito"
+  role = aws_iam_role.validate_user_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = "cognito-idp:ListUsers"
+      Resource = aws_cognito_user_pool.calendar_users.arn
+    }]
+  })
+}
+
+resource "aws_lambda_function" "validate_user" {
+  filename         = data.archive_file.validate_user.output_path
+  function_name    = "${var.project_name}-validate-user"
+  role             = aws_iam_role.validate_user_role.arn
+  handler          = "validate_user.handler"
+  source_code_hash = data.archive_file.validate_user.output_base64sha256
+  runtime          = "python3.11"
+  timeout          = 10
+
+  environment {
+    variables = {
+      USER_POOL_ID = aws_cognito_user_pool.calendar_users.id
+    }
+  }
+
+  tags = {
+    Name        = "Validate User"
+    Environment = var.environment
+    Project     = var.project_name
+  }
+}
+
+resource "aws_lambda_permission" "api_gateway_validate_user" {
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.validate_user.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.cognito_api.execution_arn}/*/*"
+}
+
+# ── User Management Lambda (Admin only) ───────────────────────────────────────
+
+resource "aws_iam_role" "user_management_role" {
+  name = "${var.project_name}-user-management-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+
+  tags = {
+    Environment = var.environment
+    Project     = var.project_name
+  }
+}
+
+resource "aws_iam_role_policy" "user_management_basic" {
+  name = "${var.project_name}-user-management-basic"
+  role = aws_iam_role.user_management_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ]
+      Resource = "*"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "user_management_cognito" {
+  name = "${var.project_name}-user-management-cognito"
+  role = aws_iam_role.user_management_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = [
+        "cognito-idp:ListUsers",
+        "cognito-idp:ListUsersInGroup",
+        "cognito-idp:AdminListGroupsForUser",
+        "cognito-idp:AdminAddUserToGroup",
+        "cognito-idp:AdminRemoveUserFromGroup",
+      ]
+      Resource = aws_cognito_user_pool.calendar_users.arn
+    }]
+  })
+}
+
+resource "aws_lambda_function" "user_management" {
+  filename         = data.archive_file.user_management.output_path
+  function_name    = "${var.project_name}-user-management"
+  role             = aws_iam_role.user_management_role.arn
+  handler          = "users.handler"
+  source_code_hash = data.archive_file.user_management.output_base64sha256
+  runtime          = "python3.11"
+  timeout          = 30
+
+  environment {
+    variables = {
+      USER_POOL_ID = tolist(data.aws_cognito_user_pools.main.ids)[0]
+    }
+  }
+
+  tags = {
+    Name        = "User Management"
+    Environment = var.environment
+    Project     = var.project_name
+  }
+}
+
+resource "aws_lambda_permission" "api_gateway_users" {
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.user_management.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.users_api.execution_arn}/*/*"
+}
+

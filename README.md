@@ -39,18 +39,7 @@ Each project in the `app/` directory uses a `Makefile` for a standardized workfl
 make build         # Prepare all projects
 make test          # Run tests for all projects
 make deploy        # Deploy all to production
-make local-setup   # Start and configure LocalStack for local dev
 ```
-
-### Local Development (with LocalStack)
-
-To run the project locally using LocalStack to emulate AWS services:
-
-1. **Start LocalStack**: `docker-compose -f local/docker-compose.yml up -d`
-2. **Setup AWS Resources**: `make local-setup`
-3. **Run React App**: `cd app/react-webapp && npm run dev`
-
-See [local/README.md](./local/README.md) for more details.
 
 
 ## Infrastructure
