@@ -7,6 +7,8 @@ import Events from './pages/Events';
 import About from './pages/About';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import Admin from './pages/Admin';
+import Register from './pages/Register';
+import Help from './pages/Help';
 
 /**
  * Main App Component with Routing
@@ -23,6 +25,8 @@ function App() {
             <Route path="about" element={<About />} />
             <Route path="privacy-policy" element={<PrivacyPolicy />} />
             <Route path="admin" element={<Admin />} />
+            <Route path="register" element={<Register />} />
+            <Route path="help" element={<Help />} />
             {/* Redirect old calendar route to events */}
             <Route path="calendar" element={<Navigate to="/events" replace />} />
             <Route path="*" element={<Navigate to="/" replace />} />

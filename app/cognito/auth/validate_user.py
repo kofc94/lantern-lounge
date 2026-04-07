@@ -34,9 +34,11 @@ def handler(event, context):
             return get_response(404, {"exists": False, "error": "User not found"})
         
         user = users[0]
+        attrs = {a["Name"]: a["Value"] for a in user.get("Attributes", [])}
         return get_response(200, {
             "exists": True,
             "sub": user.get("Username"),
+            "name": attrs.get("name", ""),
             "status": user.get("UserStatus")
         })
         

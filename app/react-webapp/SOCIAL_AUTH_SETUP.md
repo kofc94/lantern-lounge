@@ -44,18 +44,14 @@ make deploy  # Deploys all modules including cognito
 
 ## App Configuration
 
-Ensure `src/config/aws-config.js` reflects your Cognito Domain:
+`src/config/aws-config.js` is auto-generated from OpenTofu outputs — do not edit it manually. Regenerate it after any infrastructure change:
 
-```javascript
-const CONFIG = {
-  cognito: {
-    userPoolId: '...',
-    userPoolRegion: 'us-east-1',
-    appClientId: '...',
-    domain: 'your-domain.auth.us-east-1.amazoncognito.com'
-  }
-};
+```bash
+cd app/react-webapp
+make generate-config
 ```
+
+This reads the Cognito domain, user pool ID, and client ID directly from the deployed infrastructure.
 
 ## Troubleshooting
 

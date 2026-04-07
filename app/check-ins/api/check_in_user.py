@@ -1,81 +1,74 @@
-import os
 import json
 import boto3
 import uuid
 from datetime import datetime
-import urllib.request
-from shared import get_response, get_user_from_context
+from shared import (
+    get_response, get_user_from_context, get_config,
+    get_user_info_by_email, record_non_member_visit,
+)
 
 dynamodb = boto3.resource("dynamodb")
-table_name = os.environ.get("CHECKINS_TABLE")
-cognito_api_endpoint = os.environ.get("COGNITO_API_ENDPOINT")
-table = dynamodb.Table(table_name)
 
-def get_user_id_by_email(email):
-    """Calls the internal Cognito API to look up user sub by email."""
-    if not cognito_api_endpoint:
-        print("COGNITO_API_ENDPOINT not configured")
-        return None
-        
-    url = f"{cognito_api_endpoint}/validate-user?email={urllib.parse.quote(email)}"
-    try:
-        with urllib.request.urlopen(url) as response:
-            if response.getcode() == 200:
-                data = json.loads(response.read().decode())
-                return data.get("sub")
-            else:
-                return None
-    except Exception as e:
-        print(f"Cognito API lookup error: {str(e)}")
-        return None
+NON_MEMBER_VISIT_THRESHOLD = 3
+
 
 def handler(event, context):
+    config = get_config()
+    table = dynamodb.Table(config["checkins_table"])
+    non_members_table = dynamodb.Table(config["non_members_table"])
+    cognito_api_endpoint = config["cognito_api_endpoint"]
+
     staff_user = get_user_from_context(event)
-    
-    # Check if the user is an admin or staff
-    groups = staff_user.get("groups", [])
-    if "admin" not in groups and "staff" not in groups:
+    if "admin" not in staff_user.get("groups", []) and "staff" not in staff_user.get("groups", []):
         return get_response(403, {"error": "Forbidden: Staff access required"})
 
     try:
         body = json.loads(event.get("body", "{}"))
-        wallet_token = body.get("wallet_token")
         email = body.get("email")
-        
-        user_id = None
-        
-        if wallet_token:
-            if not wallet_token.startswith("LL-"):
-                return get_response(400, {"error": "Invalid wallet token"})
-            user_id = wallet_token.replace("LL-", "")
-        elif email:
-            user_id = get_user_id_by_email(email)
-            if not user_id:
-                return get_response(404, {"error": "Member not found with that email address"})
-        else:
-            return get_response(400, {"error": "Missing wallet_token or email"})
+        guests = body.get("guests", [])
 
-        # Record the check-in
-        check_in_id = str(uuid.uuid4())
+        if not email:
+            return get_response(400, {"error": "Missing email"})
+
+        user_info = get_user_info_by_email(email, cognito_api_endpoint)
+        if not user_info:
+            return get_response(404, {"error": "Member not found with that email address"})
+
+        user_id = user_info.get("sub")
+        user_name = user_info.get("name")
         timestamp = datetime.utcnow().isoformat()
-        
-        table.put_item(
-            Item={
-                "id": check_in_id,
-                "timestamp": timestamp,
-                "user_id": user_id,
-                "staff_id": staff_user["sub"],
-                "method": "manual" if email else "scan"
-            }
-        )
-        
+
+        table.put_item(Item={
+            "id": str(uuid.uuid4()),
+            "timestamp": timestamp,
+            "user_id": user_id,
+            "staff_id": staff_user["sub"],
+            "method": "manual",
+        })
+
+        guest_results = []
+        for guest in guests:
+            guest_name = (guest.get("name") or "").strip()
+            guest_email = (guest.get("email") or "").strip().lower()
+            if not guest_name or not guest_email:
+                continue
+            visit_count = record_non_member_visit(non_members_table, guest_name, guest_email, staff_user["sub"], timestamp)
+            guest_results.append({
+                "name": guest_name,
+                "email": guest_email,
+                "visit_count": visit_count,
+                "should_become_member": visit_count > NON_MEMBER_VISIT_THRESHOLD,
+            })
+
         return get_response(200, {
             "message": "Check-in successful",
             "user_id": user_id,
+            "user_name": user_name,
             "timestamp": timestamp,
-            "method": "manual" if email else "scan"
+            "method": "manual",
+            "guests": guest_results,
         })
-        
+
     except Exception as e:
         print(f"Error: {str(e)}")
         return get_response(500, {"error": "Internal server error"})

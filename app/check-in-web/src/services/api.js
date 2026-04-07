@@ -174,35 +174,38 @@ export const fetchWalletPass = async (authToken) => {
  * @param {string} authToken - Staff JWT auth token (required)
  * @returns {Promise<Object>} - Check-in result
  */
-export const checkInUser = async (walletToken, email, authToken) => {
-  if (!authToken) {
-    throw new Error('Unauthorized');
-  }
-
+export const checkInUser = async (email, authToken, guests = []) => {
+  if (!authToken) throw new Error('Unauthorized');
   const base = CONFIG.checkinsApiEndpoint || CONFIG.apiEndpoint;
-  try {
-    const response = await fetch(`${base}${CONFIG.api.checkIn}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authToken}`
-      },
-      body: JSON.stringify({ 
-        wallet_token: walletToken,
-        email: email
-      })
-    });
-
-    if (!response.ok) {
-      const data = await response.json();
-      throw new Error(data.error || 'Failed to check in');
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error('Error during check-in:', error);
-    throw error;
+  const response = await fetch(`${base}${CONFIG.api.checkIn}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+    body: JSON.stringify({ email, guests }),
+  });
+  if (!response.ok) {
+    const data = await response.json();
+    throw new Error(data.error || 'Failed to check in');
   }
+  return response.json();
+};
+
+export const checkInByScan = async (zeffyToken, authToken, guests = []) => {
+  if (!authToken) throw new Error('Unauthorized');
+  const base = CONFIG.checkinsApiEndpoint || CONFIG.apiEndpoint;
+  const response = await fetch(`${base}${CONFIG.api.checkInScan}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+    body: JSON.stringify({ zeffy_token: zeffyToken, guests }),
+  });
+  if (!response.ok) {
+    const data = await response.json();
+    const err = new Error(data.error || 'Failed to check in');
+    err.code = data.code;
+    err.zeffyMember = data.zeffy_member;
+    err.expiryDate = data.expiry_date;
+    throw err;
+  }
+  return response.json();
 };
 
 export default {
@@ -211,5 +214,6 @@ export default {
   updateEvent,
   deleteEvent,
   fetchWalletPass,
-  checkInUser
+  checkInUser,
+  checkInByScan,
 };

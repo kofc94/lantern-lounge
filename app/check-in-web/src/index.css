@@ -15,30 +15,12 @@
     margin: 0;
     padding: 0;
     min-height: 100vh;
-    background-color: #1a1a1a;
+    background-color: #1C1917;
     color: #ffffff;
     font-family: 'Inter', sans-serif;
   }
 
   * {
     box-sizing: border-box;
-  }
-}
-
-@layer components {
-  .btn-cta {
-    @apply bg-primary hover:bg-primary-hover text-white px-10 py-4 rounded-full font-semibold uppercase tracking-wide shadow-lg hover:shadow-xl transition-all hover:-translate-y-1;
-  }
-
-  .card-base {
-    @apply bg-dark-card p-8 rounded-lg shadow-lg transition-all;
-  }
-
-  .card-hover {
-    @apply hover:transform hover:-translate-y-2;
-  }
-
-  .container-custom {
-    @apply max-w-7xl mx-auto px-4;
   }
 }

@@ -1,12 +1,8 @@
 import clsx from 'clsx';
 
-/**
- * Reusable Button component with multiple variants
- * Replaces .cta-button, .btn-primary, .btn-secondary, .btn-danger, etc.
- */
 const Button = ({
   children,
-  variant = 'primary',
+  variant = 'gold',
   size = 'md',
   fullWidth = false,
   onClick,
@@ -15,31 +11,25 @@ const Button = ({
   className = '',
   ...props
 }) => {
-  const baseClasses = 'font-semibold transition-all duration-300 rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2';
+  const base = 'inline-flex items-center justify-center font-bold uppercase tracking-widest transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-black rounded-sm';
 
-  const variantClasses = {
-    primary: 'bg-primary hover:bg-primary-hover text-white shadow-lg hover:shadow-xl hover:-translate-y-1 focus:ring-primary',
-    secondary: 'bg-gray-100 hover:bg-gray-200 text-gray-900 border border-gray-300 hover:shadow-md focus:ring-gray-400',
-    danger: 'bg-red-600 hover:bg-red-700 text-white shadow-md hover:shadow-lg focus:ring-red-500',
-    outline: 'border-2 border-primary text-primary hover:bg-primary hover:text-white focus:ring-primary',
-    ghost: 'hover:bg-gray-100 text-gray-900 focus:ring-gray-400',
-    cta: 'bg-primary hover:bg-primary-hover text-white px-10 py-4 rounded-full font-semibold uppercase tracking-wide shadow-lg hover:shadow-xl hover:-translate-y-1 focus:ring-primary',
+  const variants = {
+    // Primary action for the check-in UI — warm gold glow
+    gold: 'bg-lantern-gold hover:bg-amber-400 text-black shadow-[0_0_12px_rgba(197,160,89,0.2)] hover:shadow-[0_0_24px_rgba(197,160,89,0.4)] focus:ring-lantern-gold',
+    // Heritage red — used for admin/destructive actions
+    primary: 'bg-primary hover:bg-primary-hover text-white shadow-md hover:shadow-lg focus:ring-primary',
+    // Subtle dark — for secondary/cancel actions on dark backgrounds
+    secondary: 'bg-transparent border border-white/20 text-gray-300 hover:border-white/40 hover:text-white focus:ring-white/20',
+    danger: 'bg-red-700 hover:bg-red-600 text-white focus:ring-red-500',
+    outline: 'border border-lantern-gold/60 text-lantern-gold hover:border-lantern-gold hover:bg-lantern-gold/10 focus:ring-lantern-gold',
+    ghost: 'text-gray-400 hover:text-white hover:bg-white/5 focus:ring-white/20',
   };
 
-  const sizeClasses = {
-    sm: 'px-4 py-2 text-sm',
-    md: 'px-6 py-3 text-base',
-    lg: 'px-8 py-4 text-lg',
+  const sizes = {
+    sm: 'px-4 py-2 text-xs',
+    md: 'px-6 py-3 text-xs',
+    lg: 'px-8 py-4 text-sm',
   };
-
-  const widthClasses = fullWidth ? 'w-full' : '';
-
-  const disabledClasses = disabled
-    ? 'opacity-50 cursor-not-allowed hover:transform-none hover:shadow-none'
-    : 'cursor-pointer';
-
-  // CTA variant has its own sizing
-  const appliedSizeClasses = variant === 'cta' ? '' : sizeClasses[size];
 
   return (
     <button
@@ -47,11 +37,11 @@ const Button = ({
       onClick={onClick}
       disabled={disabled}
       className={clsx(
-        baseClasses,
-        variantClasses[variant],
-        appliedSizeClasses,
-        widthClasses,
-        disabledClasses,
+        base,
+        variants[variant],
+        sizes[size],
+        fullWidth && 'w-full',
+        disabled && 'opacity-40 cursor-not-allowed pointer-events-none',
         className
       )}
       {...props}

@@ -49,6 +49,23 @@ resource "aws_ssoadmin_managed_policy_attachment" "read_only" {
   managed_policy_arn = "arn:aws:iam::aws:policy/ReadOnlyAccess"
 }
 
+resource "aws_ssoadmin_permission_set" "billing" {
+  name             = "BillingAccess"
+  instance_arn     = local.sso_instance_arn
+  session_duration = "PT8H"
+
+  tags = {
+    Environment = var.environment
+    Project     = var.project_name
+  }
+}
+
+resource "aws_ssoadmin_managed_policy_attachment" "billing" {
+  instance_arn       = local.sso_instance_arn
+  permission_set_arn = aws_ssoadmin_permission_set.billing.arn
+  managed_policy_arn = "arn:aws:iam::aws:policy/job-function/Billing"
+}
+
 # ── Groups ───────────────────────────────────────────────────────────────────
 
 resource "aws_identitystore_group" "admins" {
@@ -107,6 +124,17 @@ resource "aws_ssoadmin_account_assignment" "members_management" {
 
   principal_id   = aws_identitystore_group.members.group_id
   principal_type = "GROUP"
+
+  target_id   = data.aws_caller_identity.current.account_id
+  target_type = "AWS_ACCOUNT"
+}
+
+resource "aws_ssoadmin_account_assignment" "eric_billing" {
+  instance_arn       = local.sso_instance_arn
+  permission_set_arn = aws_ssoadmin_permission_set.billing.arn
+
+  principal_id   = aws_identitystore_user.eric.user_id
+  principal_type = "USER"
 
   target_id   = data.aws_caller_identity.current.account_id
   target_type = "AWS_ACCOUNT"

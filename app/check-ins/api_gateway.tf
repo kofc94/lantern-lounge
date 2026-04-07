@@ -8,7 +8,9 @@ resource "aws_apigatewayv2_api" "checkins_api" {
     allow_origins = [
       "https://${local.www_domain_name}",
       "https://${local.domain_name}",
-      "http://localhost:5173"
+      "https://checkin.lanternlounge.org",
+      "http://localhost:5173",
+      "http://localhost:5174"
     ]
     allow_methods = ["GET", "POST", "OPTIONS"]
     allow_headers = ["Content-Type", "Authorization"]
@@ -61,7 +63,7 @@ resource "aws_apigatewayv2_route" "get_pass" {
   authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
 
-# Integration: POST /checkin
+# Integration: POST /checkin (email)
 resource "aws_apigatewayv2_integration" "check_in" {
   api_id                 = aws_apigatewayv2_api.checkins_api.id
   integration_type       = "AWS_PROXY"
@@ -70,11 +72,30 @@ resource "aws_apigatewayv2_integration" "check_in" {
   payload_format_version = "2.0"
 }
 
-# Route: POST /checkin (AUTH required - Admin only check in Lambda)
+# Route: POST /checkin (AUTH required)
 resource "aws_apigatewayv2_route" "check_in" {
   api_id    = aws_apigatewayv2_api.checkins_api.id
   route_key = "POST /checkin"
   target    = "integrations/${aws_apigatewayv2_integration.check_in.id}"
+
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# Integration: POST /checkin/scan (Zeffy QR)
+resource "aws_apigatewayv2_integration" "check_in_by_scan" {
+  api_id                 = aws_apigatewayv2_api.checkins_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.check_in_by_scan.invoke_arn
+  integration_method     = "POST"
+  payload_format_version = "2.0"
+}
+
+# Route: POST /checkin/scan (AUTH required)
+resource "aws_apigatewayv2_route" "check_in_by_scan" {
+  api_id    = aws_apigatewayv2_api.checkins_api.id
+  route_key = "POST /checkin/scan"
+  target    = "integrations/${aws_apigatewayv2_integration.check_in_by_scan.id}"
 
   authorization_type = "JWT"
   authorizer_id      = aws_apigatewayv2_authorizer.cognito.id

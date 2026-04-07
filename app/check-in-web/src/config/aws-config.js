@@ -2,8 +2,8 @@
 
 const CONFIG = {
   // API Gateway endpoints
-  apiEndpoint: import.meta.env.VITE_API_ENDPOINT ?? (import.meta.env.DEV ? 'http://localhost:4566/restapis/local/local/_user_request_' : ''),
-  checkinsApiEndpoint: import.meta.env.VITE_CHECKINS_API_ENDPOINT ?? '',
+  apiEndpoint: import.meta.env.VITE_API_ENDPOINT ?? 'https://ms0hk6rhol.execute-api.us-east-1.amazonaws.com',
+  checkinsApiEndpoint: import.meta.env.VITE_CHECKINS_API_ENDPOINT ?? 'https://7st1x8hdu6.execute-api.us-east-1.amazonaws.com',
 
   // Cognito User Pool Configuration
   cognito: {
@@ -20,7 +20,8 @@ const CONFIG = {
     updateItem: '/calendar/items',
     deleteItem: '/calendar/items',
     getPass: '/wallet/pass',
-    checkIn: '/checkin'
+    checkIn: '/checkin',
+    checkInScan: '/checkin/scan'
   }
 };
 

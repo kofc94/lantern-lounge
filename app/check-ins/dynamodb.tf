@@ -42,3 +42,29 @@ resource "aws_dynamodb_table" "check_ins" {
     Project     = var.project_name
   }
 }
+
+# DynamoDB table for non-member visit tracking
+resource "aws_dynamodb_table" "non_members" {
+  name         = "${var.project_name}-non-members"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "email"
+
+  attribute {
+    name = "email"
+    type = "S"
+  }
+
+  point_in_time_recovery {
+    enabled = true
+  }
+
+  server_side_encryption {
+    enabled = true
+  }
+
+  tags = {
+    Name        = "Lantern Lounge Non-Members"
+    Environment = var.environment
+    Project     = var.project_name
+  }
+}
