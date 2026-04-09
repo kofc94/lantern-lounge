@@ -5,6 +5,7 @@ import useAuth from '../hooks/useAuth';
 import { checkInUser, checkInByScan } from '../services/api';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
+import clsx from 'clsx';
 
 const emptyGuest = () => ({ name: '', email: '' });
 
@@ -29,7 +30,7 @@ const StepDots = ({ step }) => {
 };
 
 const CheckIn = () => {
-  const { user, getToken, isStaff } = useAuth();
+  const { getToken, isStaff } = useAuth();
   const [scanning, setScanning] = useState(true);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -46,13 +47,29 @@ const CheckIn = () => {
   const handleUpdate = async (err, scanResult) => {
     if (scanResult && scanning) {
       setScanning(false);
-      let zeffyToken = null;
-      try {
-        zeffyToken = new URL(scanResult.text).searchParams.get('token');
-      } catch {
-        // not a URL
+      const text = scanResult.text;
+      
+      if (text.includes('LL-CHECKIN:')) {
+        const parts = text.split('LL-CHECKIN:');
+        const emailFromPrefix = parts[1].split(/[?&#]/)[0];
+        await processCheckIn({ email: emailFromPrefix });
+      } else if (text.includes('@') && !text.includes('?')) {
+        await processCheckIn({ email: text });
+      } else {
+        let zeffyToken = null;
+        try {
+          const urlObj = new URL(text);
+          zeffyToken = urlObj.searchParams.get('token') || urlObj.searchParams.get('checkin') || text;
+          if (zeffyToken.includes('LL-CHECKIN:')) {
+            const emailPart = zeffyToken.replace('LL-CHECKIN:', '');
+            await processCheckIn({ email: emailPart });
+            return;
+          }
+        } catch {
+          zeffyToken = text;
+        }
+        await processCheckIn({ zeffyToken });
       }
-      await processCheckIn({ zeffyToken });
     }
   };
 
@@ -107,22 +124,43 @@ const CheckIn = () => {
   const handleSubmitGuests = async (e) => {
     e.preventDefault();
     const validGuests = guests.filter(g => g.name.trim() && g.email.trim());
+    
+    // If no guests entered, same as skip
+    if (validGuests.length === 0) {
+      resetScanner();
+      return;
+    }
+
     setGuestLoading(true);
     try {
       const token = await getToken();
-      const data = pendingCheckIn.email
-        ? await checkInUser(pendingCheckIn.email, token, validGuests)
-        : await checkInByScan(pendingCheckIn.zeffyToken, token, validGuests);
-      setResult(prev => ({ ...prev, details: { ...prev.details, guests: data.guests } }));
-    } catch {
-      // Non-fatal — member is already checked in
+      const data = await (pendingCheckIn.email
+        ? checkInUser(pendingCheckIn.email, token, validGuests)
+        : checkInByScan(pendingCheckIn.zeffyToken, token, validGuests));
+      
+      // Check if any guest has reached the visit limit (3 visits max)
+      const warningGuests = data.guests?.filter(g => g.should_become_member) || [];
+      
+      if (warningGuests.length > 0) {
+        setResult({
+          success: true,
+          message: 'Limit Reached',
+          warningGuests: warningGuests
+        });
+        setStep('done');
+      } else {
+        // Success and no warnings: return directly to scanner
+        resetScanner();
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to submit guests');
+      setStep('done');
     } finally {
       setGuestLoading(false);
-      setStep('done');
     }
   };
 
-  const handleSkipGuests = () => setStep('done');
+  const handleSkipGuests = () => resetScanner();
 
   const resetScanner = () => {
     setScanning(true);
@@ -135,6 +173,9 @@ const CheckIn = () => {
     setUnregisteredMember(null);
     setExpiredMember(null);
   };
+
+  // Check if any guest info has been typed
+  const hasGuestData = guests.some(g => g.name.trim() || g.email.trim());
 
   if (!isStaff) {
     return (
@@ -189,6 +230,20 @@ const CheckIn = () => {
                     ← Back to Scanner
                   </button>
                 </form>
+
+                <div className="mt-8 pt-8 border-t border-white/5 text-center">
+                  <h3 className="text-[10px] font-bold text-lantern-gold uppercase tracking-[0.2em] mb-4">
+                    Create a Wallet Pass
+                  </h3>
+                  <div className="flex justify-center mb-4">
+                    <div className="p-2 bg-white rounded-sm shadow-xl">
+                      <QRCodeSVG value="https://www.lanternlounge.org" size={120} level="M" />
+                    </div>
+                  </div>
+                  <p className="text-gray-400 text-[11px] leading-relaxed max-w-[200px] mx-auto">
+                    Scan to visit lanternlounge.org, sign in, open the menu and tap <span className="text-white font-bold">"Add to Wallet"</span> to save your membership card.
+                  </p>
+                </div>
               </div>
             ) : (
               <div className="relative">
@@ -225,10 +280,44 @@ const CheckIn = () => {
         {step === 'done' && result && !result.success && (
           <div className="p-8 text-center">
             <div className="text-red-500 text-5xl mb-4">✕</div>
-            <h2 className="text-xl font-bold text-white mb-2">Not Found</h2>
+            <h2 className="text-xl font-bold text-white mb-2">Error</h2>
             <p className="text-red-400 text-sm mb-6">{error}</p>
             <Button onClick={resetScanner} variant="secondary" fullWidth>
               Try Again
+            </Button>
+          </div>
+        )}
+
+        {/* ── Special states (Warnings) ── */}
+        {step === 'done' && result && result.success && result.warningGuests && (
+          <div className="p-8 text-center">
+            <div className="text-lantern-gold text-4xl mb-3">★</div>
+            <h2 className="font-display text-xl font-bold text-white mb-2 uppercase tracking-widest">Member Invitation</h2>
+            <p className="text-gray-300 text-sm leading-relaxed mb-6 text-center mx-auto">
+              One or more guests have reached the 3-visit limit. We'd love for them to join the club!
+            </p>
+            
+            <div className="space-y-3 mb-8 text-left max-w-[280px] mx-auto">
+              {result.warningGuests.map((g, i) => (
+                <div key={i} className="p-3 rounded-sm border border-lantern-gold/40 bg-lantern-gold/5">
+                  <p className="text-white text-sm font-bold truncate">{g.name}</p>
+                  <p className="text-gray-500 text-xs truncate">{g.email}</p>
+                  <p className="text-lantern-gold text-[10px] mt-1.5 font-bold uppercase tracking-widest">
+                    Visit #{g.visit_count} — Time to Join!
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex justify-center mb-4">
+              <div className="p-3 bg-white rounded-sm shadow-2xl">
+                <QRCodeSVG value="https://www.lanternlounge.org/join-us" size={160} level="H" />
+              </div>
+            </div>
+            <p className="text-gray-500 text-[10px] uppercase tracking-widest mb-8 font-mono">lanternlounge.org/join-us</p>
+            
+            <Button onClick={resetScanner} variant="gold" fullWidth>
+              Scan Next Guest
             </Button>
           </div>
         )}
@@ -288,7 +377,7 @@ const CheckIn = () => {
           </div>
         )}
 
-        {/* ── Non-member guest entry ── */}
+        {/* ── Guest entry ── */}
         {step === 'guests' && result?.success && (
           <div className="p-6">
             <div className="text-center mb-6">
@@ -300,7 +389,7 @@ const CheckIn = () => {
               const expiry = new Date(result.details.expiry_date + 'T00:00:00');
               const daysLeft = Math.ceil((expiry - new Date()) / 86400000);
               return daysLeft <= 30 ? (
-                <div className="mb-4 p-3 rounded-sm border border-amber-500/40 bg-amber-500/10">
+                <div className="mb-6 p-3 rounded-sm border border-amber-500/40 bg-amber-500/10">
                   <p className="text-amber-400 text-xs font-bold uppercase tracking-widest">
                     Membership expires {expiry.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} — Don't forget to renew!
                   </p>
@@ -308,129 +397,93 @@ const CheckIn = () => {
               ) : null;
             })()}
 
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">
-              Non-Member Guests
-            </p>
+            <div className="mb-6">
+              <h3 className="text-sm font-bold text-lantern-gold uppercase tracking-widest mb-1 text-center">
+                Having some friends?
+              </h3>
+              <p className="text-[10px] text-gray-500 uppercase tracking-[0.2em] mb-4 text-center">
+                Please sign them in!
+              </p>
+            </div>
 
-            <form onSubmit={handleSubmitGuests} className="space-y-3">
-              {guests.map((guest, i) => (
-                <div key={i} className="bg-dark border border-white/8 rounded-sm p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] text-gray-600 uppercase font-bold tracking-widest">
-                      Guest {i + 1}
-                    </span>
-                    {guests.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveGuest(i)}
-                        aria-label={`Remove guest ${i + 1}`}
-                        className="text-gray-600 hover:text-red-400 text-xs uppercase font-bold tracking-widest transition-colors py-1"
-                      >
-                        Remove
-                      </button>
-                    )}
-                  </div>
-                  <input
-                    type="text"
-                    value={guest.name}
-                    onChange={(e) => handleGuestChange(i, 'name', e.target.value)}
-                    className="w-full bg-dark-light border border-white/10 text-white p-3 rounded-sm focus:border-lantern-gold outline-none transition-colors text-sm placeholder:text-gray-600"
-                    placeholder="Full name"
-                    autoFocus={i === 0}
-                  />
-                  <input
-                    type="email"
-                    value={guest.email}
-                    onChange={(e) => handleGuestChange(i, 'email', e.target.value)}
-                    className="w-full bg-dark-light border border-white/10 text-white p-3 rounded-sm focus:border-lantern-gold outline-none transition-colors text-sm placeholder:text-gray-600"
-                    placeholder="Email address"
-                  />
-                </div>
-              ))}
+            <form onSubmit={handleSubmitGuests} className="space-y-4">
+              <div className="overflow-x-auto -mx-6 px-6">
+                <table className="w-full text-left border-collapse min-w-[300px]">
+                  <thead>
+                    <tr className="border-b border-white/10">
+                      <th className="py-2 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Guest Name</th>
+                      <th className="py-2 text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-4">Email Address</th>
+                      <th className="py-2 w-8"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {guests.map((guest, i) => (
+                      <tr key={i} className="group">
+                        <td className="py-3 pr-2">
+                          <input
+                            type="text"
+                            value={guest.name}
+                            onChange={(e) => handleGuestChange(i, 'name', e.target.value)}
+                            className="w-full bg-dark/50 border border-white/10 text-white p-2 rounded-sm focus:border-lantern-gold outline-none transition-colors text-xs placeholder:text-gray-700"
+                            placeholder="Full name"
+                            autoFocus={i === 0}
+                          />
+                        </td>
+                        <td className="py-3 pl-2 pr-2">
+                          <input
+                            type="email"
+                            value={guest.email}
+                            onChange={(e) => handleGuestChange(i, 'email', e.target.value)}
+                            className="w-full bg-dark/50 border border-white/10 text-white p-2 rounded-sm focus:border-lantern-gold outline-none transition-colors text-xs placeholder:text-gray-700"
+                            placeholder="Email"
+                          />
+                        </td>
+                        <td className="py-3 text-right">
+                          {guests.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveGuest(i)}
+                              className="text-gray-600 hover:text-red-400 p-1 transition-colors"
+                              title="Remove Guest"
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
 
               <button
                 type="button"
                 onClick={handleAddGuest}
-                className="w-full border border-dashed border-white/10 text-gray-500 hover:border-lantern-gold/50 hover:text-lantern-gold text-xs uppercase font-bold tracking-widest py-3 rounded-sm transition-colors"
+                className="w-full border border-dashed border-white/10 text-gray-600 hover:border-lantern-gold/40 hover:text-lantern-gold text-[10px] uppercase font-bold tracking-widest py-2 rounded-sm transition-colors"
               >
-                + Add Another Guest
+                + Add Another Friend
               </button>
 
-              <Button type="submit" variant="gold" fullWidth disabled={guestLoading}>
-                {guestLoading ? 'Saving…' : 'Submit Guests'}
-              </Button>
-
-              <button
-                type="button"
-                onClick={handleSkipGuests}
-                className="w-full py-3 text-gray-600 text-xs uppercase font-bold tracking-widest hover:text-gray-400 transition-colors"
-              >
-                No guests tonight — skip
-              </button>
+              <div className="pt-4 flex flex-col gap-3">
+                {hasGuestData ? (
+                  <Button type="submit" variant="gold" fullWidth disabled={guestLoading}>
+                    {guestLoading ? 'Saving Guests…' : 'Submit & Finish'}
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="gold"
+                    fullWidth
+                    onClick={handleSkipGuests}
+                  >
+                    No guests tonight — skip
+                  </Button>
+                )}
+              </div>
             </form>
           </div>
         )}
-
-        {/* ── Final result ── */}
-        {step === 'done' && result?.success && (
-          <div className="p-8 text-center">
-            <div className="text-green-400 text-5xl mb-3">✓</div>
-            <h2 className="font-display text-2xl font-bold text-white mb-1">{result.message}</h2>
-            <p className="text-gray-600 text-xs uppercase tracking-widest mb-4">Checked in successfully</p>
-
-            {result.details?.expiry_date && (() => {
-              const expiry = new Date(result.details.expiry_date + 'T00:00:00');
-              const daysLeft = Math.ceil((expiry - new Date()) / 86400000);
-              return daysLeft <= 30 ? (
-                <div className="mb-4 p-3 rounded-sm border border-amber-500/40 bg-amber-500/10 text-left">
-                  <p className="text-amber-400 text-xs font-bold uppercase tracking-widest">
-                    Membership expires {expiry.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} — Don't forget to renew!
-                  </p>
-                </div>
-              ) : null;
-            })()}
-
-            {result.details?.guests?.length > 0 && (
-              <div className="space-y-2 text-left mb-6">
-                <p className="text-xs text-gray-500 uppercase font-bold tracking-widest mb-3">Guests</p>
-                {result.details.guests.map((g, i) => (
-                  <div
-                    key={i}
-                    className={`p-3 rounded-sm border ${
-                      g.should_become_member
-                        ? 'border-lantern-gold/40 bg-lantern-gold/5'
-                        : 'border-white/8 bg-white/3'
-                    }`}
-                  >
-                    <p className="text-white text-sm font-bold">{g.name}</p>
-                    <p className="text-gray-500 text-xs">{g.email}</p>
-                    {g.should_become_member && (
-                      <p className="text-lantern-gold text-xs mt-1.5 font-bold uppercase tracking-widest">
-                        ★ {g.visit_count} visits — invite to become a member
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <Button onClick={resetScanner} variant="gold" fullWidth>
-              Scan Next Guest
-            </Button>
-          </div>
-        )}
       </Card>
-
-      {/* Staff identity strip */}
-      <div className="mt-4 px-4 py-3 flex items-center gap-3 border border-white/5 rounded-sm bg-dark-light/50">
-        <div className="w-7 h-7 rounded-full bg-lantern-gold/20 border border-lantern-gold/30 flex items-center justify-center text-lantern-gold font-bold text-xs shrink-0">
-          {user?.name?.charAt(0) || 'S'}
-        </div>
-        <div className="min-w-0">
-          <p className="text-white text-xs font-bold leading-none truncate">{user?.name}</p>
-          <p className="text-gray-600 text-[10px] uppercase tracking-widest mt-0.5">Authorized Staff</p>
-        </div>
-      </div>
     </div>
   );
 };

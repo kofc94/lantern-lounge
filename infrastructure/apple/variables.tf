@@ -1,0 +1,54 @@
+variable "pass_type_id" {
+  description = "Apple Wallet Pass Type ID registered in the Apple Developer portal"
+  type        = string
+  default     = "pass.org.lanternlounge.membership"
+  sensitive = true
+}
+
+variable "team_id" {
+  description = "Apple Developer Team ID (10-character string, visible under Membership)"
+  type        = string
+  default     = "743LGE89HY" 
+}
+
+variable "certificate_pem" {
+  description = <<-EOT
+-----BEGIN CERTIFICATE-----
+MIIGKzCCBROgAwIBAgIQey4birH78bpHdd+l4jHkpDANBgkqhkiG9w0BAQsFADB1
+MUQwQgYDVQQDDDtBcHBsZSBXb3JsZHdpZGUgRGV2ZWxvcGVyIFJlbGF0aW9ucyBD
+ZXJ0aWZpY2F0aW9uIEF1dGhvcml0eTELMAkGA1UECwwCRzQxEzARBgNVBAoMCkFw
+cGxlIEluYy4xCzAJBgNVBAYTAlVTMB4XDTI2MDQwNzIyMjIzMFoXDTI3MDUwNzIy
+MjIyOVowgZ4xLTArBgoJkiaJk/IsZAEBDB1wYXNzLm9yZy5sYW50ZXJubG91bmdl
+LnNpZ25pbjE0MDIGA1UEAwwrUGFzcyBUeXBlIElEOiBwYXNzLm9yZy5sYW50ZXJu
+bG91bmdlLnNpZ25pbjETMBEGA1UECwwKNzQzTEdFODlIWTEVMBMGA1UECgwMRXJp
+YyBMZURvbm5lMQswCQYDVQQGEwJVUzCCASIwDQYJKoZIhvcNAQEBBQADggEPADCC
+AQoCggEBAM2Qchwz7Meoe8wm4277vf3+H6fqapCztiV3z6bshp7R5J95c19pjBDC
+qLZJ+OWNHu53gkuKk1TNVJxVpNTW/+vVbf3UDDsWb2iDeCAhfkxD19P2Mx+m6F9+
+WQKxveA/Ay7ogqgXB9eQ2+eq1rnt6NsPdZ/EsV6xEfLlONlpHOLY7OnSsf6fm01r
+No7F2h1g01U+JsMn+S4dFw3mb1ujVx3JuCKm94Nz/bpXq5+u729fDEOwvItS2aev
+04GQbMGHuUt63+B7e8bTNSBWCOrYcE0rxjfZ8fNL4kIrVBmAUCK2kBBfLUnRrhA/
+5MnT/ncYW4ntLew0j2X9MCpcLMp348sCAwEAAaOCAoswggKHMAwGA1UdEwEB/wQC
+MAAwHwYDVR0jBBgwFoAUW9n6HeeaGgujmXYiUIY+kchbd6gwcAYIKwYBBQUHAQEE
+ZDBiMC0GCCsGAQUFBzAChiFodHRwOi8vY2VydHMuYXBwbGUuY29tL3d3ZHJnNC5k
+ZXIwMQYIKwYBBQUHMAGGJWh0dHA6Ly9vY3NwLmFwcGxlLmNvbS9vY3NwMDMtd3dk
+cmc0MDQwggEeBgNVHSAEggEVMIIBETCCAQ0GCSqGSIb3Y2QFATCB/zCBwwYIKwYB
+BQUHAgIwgbYMgbNSZWxpYW5jZSBvbiB0aGlzIGNlcnRpZmljYXRlIGJ5IGFueSBw
+YXJ0eSBhc3N1bWVzIGFjY2VwdGFuY2Ugb2YgdGhlIHRoZW4gYXBwbGljYWJsZSBz
+dGFuZGFyZCB0ZXJtcyBhbmQgY29uZGl0aW9ucyBvZiB1c2UsIGNlcnRpZmljYXRl
+IHBvbGljeSBhbmQgY2VydGlmaWNhdGlvbiBwcmFjdGljZSBzdGF0ZW1lbnRzLjA3
+BggrBgEFBQcCARYraHR0cHM6Ly93d3cuYXBwbGUuY29tL2NlcnRpZmljYXRlYXV0
+aG9yaXR5LzAeBgNVHSUEFzAVBggrBgEFBQcDAgYJKoZIhvdjZAQOMDIGA1UdHwQr
+MCkwJ6AloCOGIWh0dHA6Ly9jcmwuYXBwbGUuY29tL3d3ZHJnNC03LmNybDAdBgNV
+HQ4EFgQUZcCUGJlWJLbei62dj7gIpVxU5G8wDgYDVR0PAQH/BAQDAgeAMC0GCiqG
+SIb3Y2QGARAEHwwdcGFzcy5vcmcubGFudGVybmxvdW5nZS5zaWduaW4wEAYKKoZI
+hvdjZAYDAgQCBQAwDQYJKoZIhvcNAQELBQADggEBAC4qWlJz1Fia8dmt3Uq7f/s1
+OAmzW7Mn/eY4i5kuIcIQtjiPV09sC04RByxw5hGq8tHEqsbfKN1UMI+eRQDMh20N
+lnSDqxD9M23BDai1Ppk9qqsCyTgwIpLL3cNK6ygtXf0yhuuztlrwc2L/GcjJ2fG3
+jEPlKy2ZZEoFhjnvq2PSHBZJPId03mCdO1u8jx+nNDg52jRQ75fbFJV0Sedq3MIt
++qRFr+9PmlSuAzaJuWxMVueTQI0b1AKAdRAjHJ6S0u4iopTeCanZKQTNJngziyt0
+5IbI6bdhpi2FN8/yYrxN+kCsfVqdkdpt8xWbgTa+LcHi9dEg6tjvhJIPa669aXw=
+-----END CERTIFICATE-----
+  EOT
+  type      = string
+  default   = ""
+}

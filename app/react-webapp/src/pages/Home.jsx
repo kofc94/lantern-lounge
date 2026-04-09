@@ -2,10 +2,9 @@ import { Link } from 'react-router-dom';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import useAuth from '../hooks/useAuth';
-import WalletCard from '../components/auth/WalletCard';
 
 const Home = () => {
-  const { user } = useAuth();
+  const { currentUser: user } = useAuth();
   const features = [
     {
       image: '/assets/table.png',
@@ -64,8 +63,12 @@ const Home = () => {
               </p>
               
               {user ? (
-                <div className="max-w-md">
-                  <WalletCard />
+                <div className="flex flex-wrap gap-4">
+                  <Link to="/events">
+                    <Button variant="cta" className="!bg-primary !hover:bg-primary-hover shadow-2xl">
+                      View Upcoming Events
+                    </Button>
+                  </Link>
                 </div>
               ) : (
                 <div className="flex flex-wrap gap-4">

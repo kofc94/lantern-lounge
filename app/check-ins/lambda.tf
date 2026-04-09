@@ -90,7 +90,12 @@ resource "aws_iam_role_policy" "checkins_lambda_permissions" {
         Action = "ssm:GetParameter"
         Resource = [
           "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/lantern-lounge/google/wallet-service-account-key",
-          "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/lantern-lounge/google/wallet-issuer-id"
+          "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/lantern-lounge/google/wallet-issuer-id",
+          "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/lantern-lounge/apple/wallet-pass-type-id",
+          "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/lantern-lounge/apple/wallet-team-id",
+          "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/lantern-lounge/apple/wallet-private-key",
+          "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/lantern-lounge/apple/wallet-certificate-pem",
+          "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/lantern-lounge/apple/wallet-wwdr-cert"
         ]
       },
       {
@@ -127,6 +132,18 @@ resource "aws_lambda_function" "get_wallet_pass" {
   }
 }
 
+# Lambda function: Get Apple Wallet Pass
+resource "aws_lambda_function" "get_apple_wallet_pass" {
+  filename         = data.archive_file.checkins_api.output_path
+  function_name    = "${var.project_name}-get-apple-wallet-pass"
+  role             = aws_iam_role.checkins_lambda_role.arn
+  handler          = "get_apple_wallet_pass.handler"
+  source_code_hash = data.archive_file.checkins_api.output_base64sha256
+  runtime          = "python3.11"
+  timeout          = 30
+  layers           = [aws_lambda_layer_version.wallet_deps.arn]
+}
+
 # Lambda function: Check In User (email)
 resource "aws_lambda_function" "check_in_user" {
   filename         = data.archive_file.checkins_api.output_path
@@ -154,6 +171,14 @@ resource "aws_lambda_permission" "api_gateway_get_pass" {
   statement_id  = "AllowAPIGatewayInvokeGetPass"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.get_wallet_pass.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.checkins_api.execution_arn}/*/*"
+}
+
+resource "aws_lambda_permission" "api_gateway_get_apple_pass" {
+  statement_id  = "AllowAPIGatewayInvokeGetApplePass"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.get_apple_wallet_pass.function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.checkins_api.execution_arn}/*/*"
 }

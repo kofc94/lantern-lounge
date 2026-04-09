@@ -5,10 +5,13 @@ build:
 	tofu init -input=false
 	mkdir -p .layer/python
 	pip install \
-	  --platform manylinux_2_17_x86_64 \
+	  --platform manylinux2014_x86_64 \
+	  --implementation cp \
+	  --python-version 3.11 \
 	  --only-binary=:all: \
+	  --upgrade \
 	  -t .layer/python/ \
-	  "PyJWT>=2.8" "cryptography>=41.0" --quiet
+	  "PyJWT>=2.8" "cryptography>=41.0" "cffi>=1.15" --quiet
 
 # Plan infrastructure changes
 test:

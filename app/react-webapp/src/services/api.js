@@ -138,6 +138,27 @@ export const deleteEvent = async (eventId, authToken) => {
 };
 
 /**
+ * Download an Apple Wallet .pkpass file for the signed-in user
+ * @param {string} authToken - JWT auth token (required)
+ * @returns {Promise<Blob>} - .pkpass binary blob
+ */
+export const downloadAppleWalletPass = async (authToken) => {
+  if (!authToken) throw new Error('You must be signed in to get a wallet pass');
+
+  const base = CONFIG.checkinsApiEndpoint || CONFIG.apiEndpoint;
+  const response = await fetch(`${base}${CONFIG.api.getApplePass}`, {
+    headers: { Authorization: `Bearer ${authToken}` },
+  });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.error || `HTTP error! status: ${response.status}`);
+  }
+
+  return response.blob();
+};
+
+/**
  * Fetch a wallet pass (mock token) for the user
  * @param {string} authToken - JWT auth token (required)
  * @returns {Promise<Object>} - Wallet pass info
@@ -169,11 +190,11 @@ export const fetchWalletPass = async (authToken) => {
 
 /**
  * Record a check-in (Staff only)
- * @param {string} walletToken - Token from guest's QR code
+ * @param {string} email - Guest's email address
  * @param {string} authToken - Staff JWT auth token (required)
  * @returns {Promise<Object>} - Check-in result
  */
-export const checkInUser = async (walletToken, authToken) => {
+export const checkInUser = async (email, authToken) => {
   if (!authToken) {
     throw new Error('Unauthorized');
   }
@@ -186,7 +207,7 @@ export const checkInUser = async (walletToken, authToken) => {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${authToken}`
       },
-      body: JSON.stringify({ wallet_token: walletToken })
+      body: JSON.stringify({ email: email })
     });
 
     if (!response.ok) {

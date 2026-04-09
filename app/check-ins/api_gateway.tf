@@ -63,6 +63,25 @@ resource "aws_apigatewayv2_route" "get_pass" {
   authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
 
+# Integration: GET /wallet/apple
+resource "aws_apigatewayv2_integration" "get_apple_pass" {
+  api_id                 = aws_apigatewayv2_api.checkins_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.get_apple_wallet_pass.invoke_arn
+  integration_method     = "POST"
+  payload_format_version = "2.0"
+}
+
+# Route: GET /wallet/apple (AUTH required)
+resource "aws_apigatewayv2_route" "get_apple_pass" {
+  api_id    = aws_apigatewayv2_api.checkins_api.id
+  route_key = "GET /wallet/apple"
+  target    = "integrations/${aws_apigatewayv2_integration.get_apple_pass.id}"
+
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
 # Integration: POST /checkin (email)
 resource "aws_apigatewayv2_integration" "check_in" {
   api_id                 = aws_apigatewayv2_api.checkins_api.id

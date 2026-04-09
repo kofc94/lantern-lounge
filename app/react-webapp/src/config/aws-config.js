@@ -22,7 +22,9 @@ const CONFIG = {
     updateItem: '/calendar/items',
     deleteItem: '/calendar/items',
     getPass: '/wallet/pass',
-    checkIn: '/checkin'
+    getApplePass: '/wallet/apple',
+    checkIn: '/checkin',
+    checkInScan: '/checkin/scan'
   }
 };
 

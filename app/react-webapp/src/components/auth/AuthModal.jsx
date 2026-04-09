@@ -104,6 +104,8 @@ const AuthModal = ({ isOpen, onClose }) => {
 
   const handleSocialSignIn = (provider) => {
     try {
+      // Store current location to return to after social login redirect
+      sessionStorage.setItem('auth_redirect', window.location.pathname + window.location.search);
       federatedSignIn(provider);
     } catch (error) {
       setError('Social sign-in is not configured yet. Please use email/password.');
