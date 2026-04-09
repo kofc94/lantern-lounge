@@ -1,4 +1,4 @@
-.PHONY: build test deploy clean
+.PHONY: build test deploy clean generate-config
 
 INFRA_DIR := ../../infrastructure/aws
 
@@ -7,7 +7,10 @@ BUCKET_NAME = $(shell cd $(INFRA_DIR) && tofu output -raw website_bucket_name 2>
 DISTRIBUTION_ID = $(shell cd $(INFRA_DIR) && tofu output -raw cloudfront_distribution_id 2>/dev/null)
 WEBSITE_URL = $(shell cd $(INFRA_DIR) && (tofu output -raw final_website_url 2>/dev/null || tofu output -raw website_url 2>/dev/null || echo "N/A"))
 
-build:
+generate-config:
+	node scripts/generate-config.js
+
+build: generate-config
 	npm install
 	npm run build
 

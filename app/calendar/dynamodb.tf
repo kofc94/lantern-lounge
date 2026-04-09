@@ -43,3 +43,4 @@ resource "aws_dynamodb_table" "calendar_items" {
     Project     = var.project_name
   }
 }
+

@@ -137,9 +137,161 @@ export const deleteEvent = async (eventId, authToken) => {
   }
 };
 
+/**
+ * Download an Apple Wallet .pkpass file for the signed-in user
+ * @param {string} authToken - JWT auth token (required)
+ * @returns {Promise<Blob>} - .pkpass binary blob
+ */
+export const downloadAppleWalletPass = async (authToken) => {
+  if (!authToken) throw new Error('You must be signed in to get a wallet pass');
+
+  const base = CONFIG.checkinsApiEndpoint || CONFIG.apiEndpoint;
+  const response = await fetch(`${base}${CONFIG.api.getApplePass}`, {
+    headers: { Authorization: `Bearer ${authToken}` },
+  });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.error || `HTTP error! status: ${response.status}`);
+  }
+
+  return response.blob();
+};
+
+/**
+ * Fetch a wallet pass (mock token) for the user
+ * @param {string} authToken - JWT auth token (required)
+ * @returns {Promise<Object>} - Wallet pass info
+ */
+export const fetchWalletPass = async (authToken) => {
+  if (!authToken) {
+    throw new Error('You must be signed in to get a wallet pass');
+  }
+
+  const base = CONFIG.checkinsApiEndpoint || CONFIG.apiEndpoint;
+  try {
+    const response = await fetch(`${base}${CONFIG.api.getPass}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${authToken}`
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching wallet pass:', error);
+    throw error;
+  }
+};
+
+/**
+ * Record a check-in (Staff only)
+ * @param {string} email - Guest's email address
+ * @param {string} authToken - Staff JWT auth token (required)
+ * @returns {Promise<Object>} - Check-in result
+ */
+export const checkInUser = async (email, authToken) => {
+  if (!authToken) {
+    throw new Error('Unauthorized');
+  }
+
+  const base = CONFIG.checkinsApiEndpoint || CONFIG.apiEndpoint;
+  try {
+    const response = await fetch(`${base}${CONFIG.api.checkIn}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      },
+      body: JSON.stringify({ email: email })
+    });
+
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || 'Failed to check in');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error during check-in:', error);
+    throw error;
+  }
+};
+
+/**
+ * Fetch all users (admin only)
+ * @param {string} authToken - JWT auth token (required)
+ * @param {string} paginationToken - Pagination token (optional)
+ * @returns {Promise<Object>} - Users list and pagination token
+ */
+export const fetchUsers = async (authToken, paginationToken = null) => {
+  if (!authToken) throw new Error('Authentication required');
+
+  try {
+    let url = `${CONFIG.usersApiEndpoint}/users`;
+    if (paginationToken) {
+      url += `?paginationToken=${encodeURIComponent(paginationToken)}`;
+    }
+
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${authToken}`
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    throw error;
+  }
+};
+
+/**
+ * Update a user's role/profile (admin only)
+ * @param {string} username - Cognito username
+ * @param {string} profile - New profile value ('limited', 'member', or 'admin')
+ * @param {string} authToken - JWT auth token (required)
+ * @returns {Promise<Object>} - Updated user
+ */
+export const updateUserRole = async (username, profile, authToken) => {
+  if (!authToken) throw new Error('Authentication required');
+
+  try {
+    const response = await fetch(`${CONFIG.usersApiEndpoint}/users/${username}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      },
+      body: JSON.stringify({ profile })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error updating user role:', error);
+    throw error;
+  }
+};
+
 export default {
   fetchEvents,
   createEvent,
   updateEvent,
-  deleteEvent
+  deleteEvent,
+  fetchWalletPass,
+  checkInUser,
+  fetchUsers,
+  updateUserRole
 };

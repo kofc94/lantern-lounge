@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Generated files
+src/config/aws-config.js
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

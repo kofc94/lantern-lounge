@@ -110,6 +110,7 @@ export const AuthProvider = ({ children }) => {
   const value = {
     currentUser,
     isAuthenticated: !!currentUser,
+    isAdmin: currentUser?.groups?.includes('admin') ?? false,
     isLoading,
     error,
     signIn,

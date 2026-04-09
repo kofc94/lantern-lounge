@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import AuthModal from '../auth/AuthModal';
+import WalletCard from '../auth/WalletCard';
 import clsx from 'clsx';
 
 /**
@@ -13,7 +14,7 @@ const Navbar = () => {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
   const location = useLocation();
-  const { currentUser, isAuthenticated, signOut } = useAuth();
+  const { currentUser, isAuthenticated, signOut, isAdmin } = useAuth();
   const dropdownRef = useRef(null);
 
   const navLinks = [
@@ -22,6 +23,10 @@ const Navbar = () => {
     { path: '/events', label: 'Events' },
     { path: '/about', label: 'About' },
   ];
+
+  if (isAdmin) {
+    navLinks.push({ path: '/admin', label: 'Admin' });
+  }
 
   const isActive = (path) => {
     return location.pathname === path;
@@ -65,7 +70,7 @@ const Navbar = () => {
   }, [isUserDropdownOpen]);
 
   // Determine user type
-  const userType = currentUser?.groups?.includes('admin') ? 'Administrator' : 'Club Member';
+  const userType = isAdmin ? 'Administrator' : 'Club Member';
 
   return (
     <nav className="fixed top-0 w-full bg-dark/90 backdrop-blur-md z-50 border-b border-white/5">
@@ -138,15 +143,17 @@ const Navbar = () => {
                     
                     <div className="mb-6">
                       <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-stone-400 mb-1">Membership</p>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 mb-4">
                         <div className={clsx(
                           "w-2 h-2 rounded-full",
-                          currentUser?.groups?.includes('admin') ? "bg-primary" : "bg-accent-gold"
+                          isAdmin ? "bg-primary" : "bg-accent-gold"
                         )} />
                         <span className="text-sm font-bold text-neutral-dark italic">
                           {userType}
                         </span>
                       </div>
+                      
+                      <WalletCard />
                     </div>
 
                     <button
@@ -192,7 +199,7 @@ const Navbar = () => {
         <div
           className={clsx(
             'lg:hidden transition-all duration-300 overflow-hidden bg-dark/95 backdrop-blur-xl',
-            isMobileMenuOpen ? 'max-h-[32rem] pb-8' : 'max-h-0'
+            isMobileMenuOpen ? 'max-h-[48rem] pb-8' : 'max-h-0'
           )}
         >
           <ul className="space-y-4 pt-4 px-2">
@@ -215,10 +222,11 @@ const Navbar = () => {
             
             {isAuthenticated && (
               <li className="px-6 py-4 border-t border-white/5 mt-4">
-                <div className="flex flex-col gap-1 mb-4">
+                <div className="flex flex-col gap-1 mb-6">
                   <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-accent-gold">Profile</span>
                   <span className="text-white font-display text-lg">{currentUser?.name}</span>
-                  <span className="text-gray-500 text-xs italic">{userType}</span>
+                  <span className="text-gray-500 text-xs italic mb-4">{userType}</span>
+                  <WalletCard />
                 </div>
                 <button
                   onClick={() => {

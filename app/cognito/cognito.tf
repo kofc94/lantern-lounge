@@ -103,6 +103,7 @@ resource "aws_cognito_user_pool_client" "calendar_app" {
   callback_urls = [
     "https://${local.www_domain_name}/",
     "https://${local.domain_name}/",
+    "https://checkin.lanternlounge.org/",
     "http://localhost:5173/"
   ]
 
@@ -110,6 +111,7 @@ resource "aws_cognito_user_pool_client" "calendar_app" {
   logout_urls = [
     "https://${local.www_domain_name}/",
     "https://${local.domain_name}/",
+    "https://checkin.lanternlounge.org/",
     "http://localhost:5173/"
   ]
 

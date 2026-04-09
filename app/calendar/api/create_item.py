@@ -9,11 +9,7 @@ from shared import (
     CalendarItem, Visibility, Status, now_iso,
 )
 
-localstack_hostname = os.environ.get('LOCALSTACK_HOSTNAME')
-if localstack_hostname:
-    dynamodb = boto3.resource('dynamodb', endpoint_url=f'http://{localstack_hostname}:4566')
-else:
-    dynamodb = boto3.resource('dynamodb')
+dynamodb = boto3.resource('dynamodb')
 table_name = os.environ.get('DYNAMODB_TABLE', 'lantern-lounge-calendar-items')
 table = dynamodb.Table(table_name)
 

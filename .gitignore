@@ -21,6 +21,10 @@ terraform.tfvars
 **/*.zip
 dist/
 **/dist/
+
+# Lambda layer dependencies (built by `make build`)
+app/check-ins/.layer/python/*
+!app/check-ins/.layer/python/.gitkeep
 # OS generated files
 .DS_Store
 .DS_Store?

@@ -444,8 +444,33 @@ resource "aws_cloudfront_distribution" "website_distribution" {
   }
 }
 
+# CloudFront Function: redirect lanternlounge.org → www.lanternlounge.org preserving query strings
+resource "aws_cloudfront_function" "redirect_to_www" {
+  name    = "lantern-lounge-redirect-to-www"
+  runtime = "cloudfront-js-2.0"
+  publish = true
+  code    = <<-EOF
+    function handler(event) {
+      var request = event.request;
+      var keys = Object.keys(request.querystring);
+      var qs = keys.length > 0
+        ? '?' + keys.map(function(k) {
+            var v = request.querystring[k];
+            return encodeURIComponent(k) + '=' + encodeURIComponent(v.value);
+          }).join('&')
+        : '';
+      return {
+        statusCode: 301,
+        statusDescription: 'Moved Permanently',
+        headers: { location: { value: 'https://www.lanternlounge.org' + request.uri + qs } }
+      };
+    }
+  EOF
+}
+
 # CloudFront distribution for root domain redirect
 resource "aws_cloudfront_distribution" "redirect_distribution" {
+  # Origin is required by CloudFront even though the function short-circuits all requests
   origin {
     domain_name = aws_s3_bucket_website_configuration.redirect.website_endpoint
     origin_id   = "S3-${local.domain_name}"
@@ -466,13 +491,18 @@ resource "aws_cloudfront_distribution" "redirect_distribution" {
     allowed_methods        = ["GET", "HEAD"]
     cached_methods         = ["GET", "HEAD"]
     target_origin_id       = "S3-${local.domain_name}"
-    viewer_protocol_policy = "redirect-to-https"
+    viewer_protocol_policy = "allow-all"
 
     forwarded_values {
       query_string = false
       cookies {
         forward = "none"
       }
+    }
+
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.redirect_to_www.arn
     }
 
     min_ttl     = 0

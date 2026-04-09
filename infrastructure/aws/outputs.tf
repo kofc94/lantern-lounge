@@ -33,6 +33,16 @@ output "github_actions_role_arn" {
   value       = aws_iam_role.github_actions_terraform.arn
 }
 
+output "checkin_cloudfront_distribution_id" {
+  description = "CloudFront distribution ID for checkin.lanternlounge.org"
+  value       = aws_cloudfront_distribution.checkin_distribution.id
+}
+
+output "checkin_website_url" {
+  description = "Check-in web app URL"
+  value       = "https://${local.checkin_domain_name}"
+}
+
 output "sso_portal_url" {
   description = "AWS access portal URL — set a custom subdomain in IAM Identity Center → Settings → Customize AWS access portal URL"
   value       = "https://${tolist(data.aws_ssoadmin_instances.main.identity_store_ids)[0]}.awsapps.com/start"
