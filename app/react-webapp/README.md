@@ -33,16 +33,22 @@ make build
 npm run dev
 ```
 
-### 3. Run Linting
+### 3. Run Tests
 
 ```bash
+# Run all tests once
 make test
+# OR
+npm run test
+
+# Run tests in watch mode
+npm run test:watch
 ```
 
-### 4. Production Build (Local)
+### 4. Run Linting
 
 ```bash
-npm run build
+npm run lint
 ```
 
 The optimized build will be generated in the `dist/` directory.

@@ -15,10 +15,9 @@ This guide explains how to deploy the React frontend to AWS (S3 + CloudFront).
 - Core infrastructure (S3 buckets, CloudFront distribution) must be deployed in `infrastructure/aws/`.
 
 ## Deployment Workflow
-
 ### Standard Deployment
 
-The project uses a `Makefile` to automate the build and sync process.
+The project uses a `Makefile` to automate the build, test, and sync process.
 
 ```bash
 cd app/react-webapp
@@ -27,8 +26,10 @@ make deploy
 
 This command performs the following actions:
 1. `npm install` (if node_modules are missing).
-2. `npm run build` (generates the `dist/` folder using `config/vite.config.js`).
-3. Fetches `website_bucket_name` and `cloudfront_distribution_id` from OpenTofu.
+2. `npm run test` (executes the Vitest suite).
+3. `npm run build` (generates the `dist/` folder using `config/vite.config.js`).
+4. Fetches `website_bucket_name` and `cloudfront_distribution_id` from OpenTofu.
+...
 4. Synchronizes `dist/` to S3 with optimized cache-control headers.
 5. Invalidates the CloudFront cache (`/*`) to ensure the latest version is served.
 

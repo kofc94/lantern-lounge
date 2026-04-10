@@ -16,8 +16,9 @@ build: generate-config
 
 test:
 	npm run lint
+	npm run test
 
-deploy: build
+deploy: test build
 	@if [ -z "$(BUCKET_NAME)" ] || [ -z "$(DISTRIBUTION_ID)" ]; then \
 		echo "❌ Error: Could not get bucket name or distribution ID from OpenTofu"; \
 		echo "   Make sure infrastructure is deployed in $(INFRA_DIR)"; \
