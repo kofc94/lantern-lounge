@@ -42,19 +42,19 @@ resource "aws_s3_bucket" "redirect" {
 resource "aws_s3_bucket_public_access_block" "website" {
   bucket = aws_s3_bucket.website.id
 
-  block_public_acls       = false
-  block_public_policy     = false
-  ignore_public_acls      = false
-  restrict_public_buckets = false
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
 }
 
 resource "aws_s3_bucket_public_access_block" "redirect" {
   bucket = aws_s3_bucket.redirect.id
 
-  block_public_acls       = false
-  block_public_policy     = false
-  ignore_public_acls      = false
-  restrict_public_buckets = false
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
 }
 
 # S3 bucket policy for website bucket
@@ -63,14 +63,24 @@ resource "aws_s3_bucket_policy" "website" {
   depends_on = [aws_s3_bucket_public_access_block.website]
 
   policy = jsonencode({
-    Version = "2008-10-17"
+    Version = "2012-10-17"
     Statement = [
       {
-        Sid       = "PublicReadGetObject"
+        Sid       = "AllowCloudFrontServicePrincipal"
         Effect    = "Allow"
-        Principal = "*"
+        Principal = {
+          Service = "cloudfront.amazonaws.com"
+        }
         Action    = "s3:GetObject"
         Resource  = "${aws_s3_bucket.website.arn}/*"
+        Condition = {
+          StringEquals = {
+            "AWS:SourceArn" = [
+              aws_cloudfront_distribution.website_distribution.arn,
+              aws_cloudfront_distribution.website_distribution_temp.arn
+            ]
+          }
+        }
       }
     ]
   })
@@ -82,40 +92,24 @@ resource "aws_s3_bucket_policy" "redirect" {
   depends_on = [aws_s3_bucket_public_access_block.redirect]
 
   policy = jsonencode({
-    Version = "2008-10-17"
+    Version = "2012-10-17"
     Statement = [
       {
-        Sid       = "PublicReadGetObject"
+        Sid       = "AllowCloudFrontServicePrincipal"
         Effect    = "Allow"
-        Principal = "*"
+        Principal = {
+          Service = "cloudfront.amazonaws.com"
+        }
         Action    = "s3:GetObject"
         Resource  = "${aws_s3_bucket.redirect.arn}/*"
+        Condition = {
+          StringEquals = {
+            "AWS:SourceArn" = aws_cloudfront_distribution.redirect_distribution.arn
+          }
+        }
       }
     ]
   })
-}
-
-# S3 bucket website configuration
-resource "aws_s3_bucket_website_configuration" "website" {
-  bucket = aws_s3_bucket.website.id
-
-  index_document {
-    suffix = "index.html"
-  }
-
-  error_document {
-    key = "index.html"
-  }
-}
-
-# S3 bucket website configuration for redirect
-resource "aws_s3_bucket_website_configuration" "redirect" {
-  bucket = aws_s3_bucket.redirect.id
-
-  redirect_all_requests_to {
-    host_name = local.www_domain_name
-    protocol  = "https"
-  }
 }
 
 # S3 bucket CORS configuration
@@ -198,18 +192,21 @@ data "aws_cloudfront_origin_request_policy" "all_viewer_except_host" {
   name = "Managed-AllViewerExceptHostHeader"
 }
 
+# Origin Access Control for S3
+resource "aws_cloudfront_origin_access_control" "s3_oac" {
+  name                              = "s3-oac-${local.domain_name}"
+  description                       = "OAC for S3 buckets"
+  origin_access_control_origin_type = "s3"
+  signing_behavior                  = "always"
+  signing_protocol                  = "sigv4"
+}
+
 # Temporary CloudFront distribution without SSL certificate for testing
 resource "aws_cloudfront_distribution" "website_distribution_temp" {
   origin {
-    domain_name = aws_s3_bucket_website_configuration.website.website_endpoint
-    origin_id   = "S3-${local.www_domain_name}"
-
-    custom_origin_config {
-      http_port              = 80
-      https_port             = 443
-      origin_protocol_policy = "http-only"
-      origin_ssl_protocols   = ["TLSv1.2"]
-    }
+    domain_name              = aws_s3_bucket.website.bucket_regional_domain_name
+    origin_id                = "S3-${local.www_domain_name}"
+    origin_access_control_id = aws_cloudfront_origin_access_control.s3_oac.id
   }
 
   origin {
@@ -330,15 +327,9 @@ resource "aws_acm_certificate_validation" "ssl_validation" {
 # CloudFront distribution with SSL certificate
 resource "aws_cloudfront_distribution" "website_distribution" {
   origin {
-    domain_name = aws_s3_bucket_website_configuration.website.website_endpoint
-    origin_id   = "S3-${local.www_domain_name}"
-
-    custom_origin_config {
-      http_port              = 80
-      https_port             = 443
-      origin_protocol_policy = "http-only"
-      origin_ssl_protocols   = ["TLSv1.2"]
-    }
+    domain_name              = aws_s3_bucket.website.bucket_regional_domain_name
+    origin_id                = "S3-${local.www_domain_name}"
+    origin_access_control_id = aws_cloudfront_origin_access_control.s3_oac.id
   }
 
   origin {
@@ -472,15 +463,9 @@ resource "aws_cloudfront_function" "redirect_to_www" {
 resource "aws_cloudfront_distribution" "redirect_distribution" {
   # Origin is required by CloudFront even though the function short-circuits all requests
   origin {
-    domain_name = aws_s3_bucket_website_configuration.redirect.website_endpoint
-    origin_id   = "S3-${local.domain_name}"
-
-    custom_origin_config {
-      http_port              = 80
-      https_port             = 443
-      origin_protocol_policy = "http-only"
-      origin_ssl_protocols   = ["TLSv1.2"]
-    }
+    domain_name              = aws_s3_bucket.redirect.bucket_regional_domain_name
+    origin_id                = "S3-${local.domain_name}"
+    origin_access_control_id = aws_cloudfront_origin_access_control.s3_oac.id
   }
 
   enabled         = true
@@ -491,7 +476,7 @@ resource "aws_cloudfront_distribution" "redirect_distribution" {
     allowed_methods        = ["GET", "HEAD"]
     cached_methods         = ["GET", "HEAD"]
     target_origin_id       = "S3-${local.domain_name}"
-    viewer_protocol_policy = "allow-all"
+    viewer_protocol_policy = "redirect-to-https"
 
     forwarded_values {
       query_string = false
