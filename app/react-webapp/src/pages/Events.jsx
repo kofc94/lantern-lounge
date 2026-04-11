@@ -478,6 +478,15 @@ const Events = () => {
             </p>
           </div>
 
+          {viewingEvent?.createdBy && (
+            <div className="mb-8 pt-4 border-t border-stone-100">
+              <p className="text-xs font-mono text-stone-400 uppercase tracking-widest">
+                Added by <span className="text-stone-600 font-bold">{viewingEvent.createdBy}</span>
+                {viewingEvent.createdAt && ` on ${new Date(viewingEvent.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`}
+              </p>
+            </div>
+          )}
+
           <div className="flex flex-col gap-3 border-t border-stone-200 pt-8 mt-8">
             <div className="flex gap-4">
               <Button

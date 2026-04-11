@@ -16,7 +16,7 @@ else:
 from pydantic import ValidationError
 from shared import (
     get_response, get_user_from_context, get_config,
-    record_non_member_visit, handle_exception
+    record_non_member_visit, handle_exception, now_utc
 )
 from domain import GuestResultDto, APIResponse, GuestCheckInRequest, GuestCheckInResponseDto
 
@@ -45,7 +45,7 @@ def handler(event: APIGatewayProxyEventV2, context: Context) -> APIResponse:
         except ValidationError as ve:
             return get_response(400, {"error": f"Invalid request body: {ve.errors()}"})
 
-        timestamp = datetime.utcnow().isoformat()
+        now = now_utc()
         guest_results: List[GuestResultDto] = []
         
         for guest in request_data.guests:
@@ -55,12 +55,12 @@ def handler(event: APIGatewayProxyEventV2, context: Context) -> APIResponse:
                 continue
                 
             # Record visit and link to the check-in ID
-            visit_count = record_non_member_visit(
+            visit_count, guest_created_at, guest_updated_at = record_non_member_visit(
                 non_members_table, 
                 guest_name, 
                 guest_email, 
                 staff_user.sub, 
-                timestamp,
+                now,
                 checkin_id=checkin_id
             )
             
@@ -68,6 +68,8 @@ def handler(event: APIGatewayProxyEventV2, context: Context) -> APIResponse:
                 name=guest_name,
                 email=guest_email,
                 visit_count=visit_count,
+                created_at=guest_created_at,
+                updated_at=guest_updated_at
             ))
 
         response_dto = GuestCheckInResponseDto(

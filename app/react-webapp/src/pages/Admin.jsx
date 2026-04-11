@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { fetchUsers, updateUserRole } from '../services/api';
 import Button from '../components/common/Button';
@@ -8,7 +8,7 @@ import clsx from 'clsx';
  * Admin Page - User management and profile role assignment
  */
 const Admin = () => {
-  const { getToken, isAdmin } = useAuth();
+  const { getToken, isAdmin, isLoading: authLoading } = useAuth();
   const [users, setUsers] = useState([]);
   const [paginationToken, setPaginationToken] = useState(null);
   const [nextPaginationToken, setNextPaginationToken] = useState(null);
@@ -16,9 +16,13 @@ const Admin = () => {
   const [isUpdating, setIsUpdating] = useState(null); // username of user being updated
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const isFetching = useRef(false);
 
   const loadUsers = async (token = null) => {
+    if (isFetching.current) return;
+    
     try {
+      isFetching.current = true;
       setIsLoading(true);
       setError(null);
       const authToken = await getToken();
@@ -29,14 +33,15 @@ const Admin = () => {
       setError(err.message || 'Failed to load users');
     } finally {
       setIsLoading(false);
+      isFetching.current = false;
     }
   };
 
   useEffect(() => {
-    if (isAdmin) {
+    if (isAdmin && !authLoading) {
       loadUsers();
     }
-  }, [isAdmin]);
+  }, [isAdmin, authLoading]);
 
   const handleUpdate = async (username, newProfile) => {
     try {
@@ -99,17 +104,18 @@ const Admin = () => {
               <tr>
                 <th className="px-6 py-4 text-left text-xs font-mono text-[#a69681] uppercase tracking-[0.2em] font-bold">User</th>
                 <th className="px-6 py-4 text-left text-xs font-mono text-[#a69681] uppercase tracking-[0.2em] font-bold">Email</th>
+                <th className="px-6 py-4 text-left text-xs font-mono text-[#a69681] uppercase tracking-[0.2em] font-bold">Joined</th>
                 <th className="px-6 py-4 text-center text-xs font-mono text-[#a69681] uppercase tracking-[0.2em] font-bold">Registry Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-100 bg-[#fffcf7]">
               {isLoading ? (
                 <tr>
-                  <td colSpan="3" className="px-6 py-20 text-center text-stone-400 italic">Consulting the archives...</td>
+                  <td colSpan="4" className="px-6 py-20 text-center text-stone-400 italic">Consulting the archives...</td>
                 </tr>
               ) : users.length === 0 ? (
                 <tr>
-                  <td colSpan="3" className="px-6 py-20 text-center text-stone-400 italic">No users found.</td>
+                  <td colSpan="4" className="px-6 py-20 text-center text-stone-400 italic">No users found.</td>
                 </tr>
               ) : (
                 users.map((user) => (
@@ -119,6 +125,11 @@ const Admin = () => {
                       <div className="text-xs font-mono text-stone-400">{user.username}</div>
                     </td>
                     <td className="px-6 py-5 text-stone-600 font-serif">{user.email}</td>
+                    <td className="px-6 py-5">
+                      <div className="text-xs font-mono text-stone-500 uppercase">
+                        {user.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Unknown'}
+                      </div>
+                    </td>
 
                     <td className="px-6 py-5">
                       <div className="flex justify-center items-center space-x-8">

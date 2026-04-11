@@ -33,12 +33,14 @@ class GuestResultDto(CamelModel):
     name: str
     email: str
     visit_count: int
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 class CheckInResponseDto(CamelModel):
     id: str
     user_id: str
     user_name: str
-    timestamp: str
+    created_at: datetime
 
 class GuestCheckInRequest(CamelModel):
     guests: List[GuestDto] = Field(default_factory=list)

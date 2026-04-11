@@ -193,8 +193,20 @@ resource "aws_cognito_user_pool_client" "checkin_app" {
   allowed_oauth_flows                  = ["implicit", "code"]
   allowed_oauth_scopes                 = ["email", "openid", "profile", "aws.cognito.signin.user.admin"]
 
-  callback_urls = ["https://checkin.lanternlounge.org/", "http://localhost:5173/"]
-  logout_urls   = ["https://checkin.lanternlounge.org/", "http://localhost:5173/"]
+  callback_urls = [
+    "https://checkin.lanternlounge.org/",
+    "http://localhost:5173/",
+    "capacitor://localhost",
+    "http://localhost",
+    "org.lanternlounge.checkin://callback"
+  ]
+  logout_urls = [
+    "https://checkin.lanternlounge.org/",
+    "http://localhost:5173/",
+    "capacitor://localhost",
+    "http://localhost",
+    "org.lanternlounge.checkin://logout"
+  ]
 
   supported_identity_providers = ["COGNITO", "Google"]
   enable_token_revocation      = true

@@ -18,7 +18,7 @@ from pydantic import ValidationError
 from shared import (
     get_response, get_user_from_context, get_config,
     get_user_info_by_email, record_non_member_visit,
-    handle_exception
+    handle_exception, now_utc
 )
 from domain import GuestResultDto, APIResponse, ManualCheckInRequest, CheckInResponseDto
 
@@ -56,12 +56,12 @@ def handler(event: APIGatewayProxyEventV2, context: Context) -> APIResponse:
             user_id = staff_user.sub
             user_name = staff_user.name or staff_user.email or "Member"
 
-        timestamp = datetime.utcnow().isoformat()
+        now = now_utc()
         checkin_id = str(ULID())
 
         table.put_item(Item={
             "id": checkin_id,
-            "timestamp": timestamp,
+            "created_at": now.strftime('%Y-%m-%dT%H:%M:%SZ'),
             "user_id": user_id,
             "staff_id": staff_user.sub,
             "method": "manual",
@@ -71,7 +71,7 @@ def handler(event: APIGatewayProxyEventV2, context: Context) -> APIResponse:
             id=checkin_id,
             user_id=user_id,
             user_name=user_name or "Unknown",
-            timestamp=timestamp,
+            created_at=now,
         )
 
         return get_response(200, response_dto.model_dump(exclude_none=True, by_alias=True))

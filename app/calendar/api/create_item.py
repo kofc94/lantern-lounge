@@ -7,7 +7,7 @@ from pydantic import ValidationError
 from shared import (
     APIGatewayProxyEventV2, Context, APIResponse,
     get_user_info, create_response,
-    CalendarItem, Visibility, Status, now_iso,
+    CalendarItem, Visibility, Status, now_utc,
     CreateItemRequest
 )
 
@@ -37,7 +37,7 @@ def handler(event: APIGatewayProxyEventV2, context: Context) -> APIResponse:
             visibility = Visibility.PUBLIC
             status = Status.PENDING_APPROVAL
 
-        now = now_iso()
+        now = now_utc()
         item = CalendarItem(
             id=str(ULID()),
             date=request_data.date,
@@ -45,7 +45,7 @@ def handler(event: APIGatewayProxyEventV2, context: Context) -> APIResponse:
             description=request_data.description,
             visibility=visibility,
             status=status,
-            created_by=user.email or 'unknown',
+            created_by=user.name or user.email or 'unknown',
             created_by_user_id=user.user_id,
             created_at=now,
             updated_at=now,
@@ -53,10 +53,7 @@ def handler(event: APIGatewayProxyEventV2, context: Context) -> APIResponse:
 
         table.put_item(Item=item.to_dynamo())
 
-        return create_response(201, {
-            'message': 'Calendar item created successfully',
-            'item': item.model_dump(by_alias=True),
-        })
+        return create_response(201, item.model_dump(by_alias=True))
 
     except Exception as e:
         print(f"Error: {str(e)}")

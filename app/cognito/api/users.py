@@ -86,6 +86,8 @@ def list_users(event: APIGatewayProxyEventV2) -> APIResponse:
             email=attrs.get('email'),
             name=attrs.get('name'),
             profile=profile,
+            created_at=u['UserCreateDate'],
+            updated_at=u['UserLastModifiedDate'],
         ))
 
     response_dto = UsersResponseDto(

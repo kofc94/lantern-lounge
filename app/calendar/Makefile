@@ -11,7 +11,7 @@ build:
 	  --only-binary=:all: \
 	  --upgrade \
 	  -t .layer/python/ \
-	  "pydantic>=2.0.0" "python-ulid>=3.0.0" --quiet
+	  "pydantic>=2.0.0" "python-ulid>=3.0.0" "PyJWT>=2.8.0" --quiet
 
 # Plan infrastructure changes
 test:

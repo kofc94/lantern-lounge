@@ -3,13 +3,16 @@ import boto3
 import urllib.parse
 import urllib.request
 import os
+import logging
+import traceback
 from decimal import Decimal
-from typing import Any, Dict, Optional, cast
+from datetime import datetime, timezone, date
+from typing import Any, Dict, Optional, cast, List, Tuple
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from mypy_boto3_ssm import SSMClient
-    from mypy_boto3_dynamodb.service_resource import Table
+    from mypy_boto3_dynamodb.service_resource import Table, Authorizer
     from aws_lambda_typing.events import APIGatewayProxyEventV2
     from aws_lambda_typing.context import Context
 else:
@@ -22,6 +25,23 @@ from domain import AppConfig, UserContext, CognitoUser, APIResponse
 
 _ssm: SSMClient = boto3.client("ssm")
 _config: Optional[AppConfig] = None
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+def now_utc() -> datetime:
+    """Current UTC time as a datetime object."""
+    return datetime.now(timezone.utc)
+
+def convert_timestamp(v: Any) -> Optional[datetime]:
+    """Convert numeric timestamp (from legacy data) to datetime object."""
+    if isinstance(v, (int, float, Decimal)):
+        # Convert epoch (seconds or ms) to datetime
+        ts = float(v)
+        if ts > 1e12:  # Likely milliseconds
+            ts /= 1000
+        return datetime.fromtimestamp(ts, tz=timezone.utc)
+    return v
 
 def get_config() -> AppConfig:
     global _config
@@ -37,12 +57,6 @@ def get_config() -> AppConfig:
             cognito_api_endpoint=parsed["cognito_api_endpoint"],
         )
     return _config
-
-import logging
-import traceback
-
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
 
 def get_response(status_code: int, body: Dict[str, Any]) -> APIResponse:
     if status_code >= 400:
@@ -75,6 +89,8 @@ class DecimalEncoder(json.JSONEncoder):
     def default(self, obj: Any) -> Any:
         if isinstance(obj, Decimal):
             return str(obj)
+        if isinstance(obj, (datetime, date)):
+            return obj.isoformat().replace('+00:00', 'Z')
         return super(DecimalEncoder, self).default(obj)
 
 def get_user_info_by_email(email: str, cognito_api_endpoint: str) -> Optional[CognitoUser]:
@@ -93,15 +109,17 @@ def get_user_info_by_email(email: str, cognito_api_endpoint: str) -> Optional[Co
         print(f"Cognito API lookup error: {str(e)}")
         return None
 
-def record_non_member_visit(table: Table, name: str, email: str, staff_id: str, timestamp: str, checkin_id: Optional[str] = None) -> int:
-    """Upserts a non-member visit record and returns the updated visit count."""
+def record_non_member_visit(table: Table, name: str, email: str, staff_id: str, timestamp: datetime, checkin_id: Optional[str] = None) -> Tuple[int, datetime, datetime]:
+    """Upserts a non-member visit record and returns (visit_count, created_at, updated_at)."""
+    ts_str = timestamp.strftime('%Y-%m-%dT%H:%M:%SZ')
     update_expr = (
-        "SET #n = :name, last_visit = :ts, staff_id = :sid "
+        "SET #n = :name, updatedAt = :ts, last_visit = :ts, staff_id = :sid, "
+        "createdAt = if_not_exists(createdAt, :ts) "
         "ADD visit_count :inc"
     )
     attr_values: Dict[str, Any] = {
         ":name": name,
-        ":ts": timestamp,
+        ":ts": ts_str,
         ":sid": staff_id,
         ":inc": 1,
     }
@@ -119,7 +137,12 @@ def record_non_member_visit(table: Table, name: str, email: str, staff_id: str, 
         ReturnValues="ALL_NEW",
     )
     attributes = response.get("Attributes", {})
-    return int(str(attributes.get("visit_count", 1)))
+    visit_count = int(str(attributes.get("visit_count", 1)))
+    
+    created_at = convert_timestamp(attributes.get("createdAt")) or timestamp
+    updated_at = convert_timestamp(attributes.get("updatedAt")) or timestamp
+    
+    return visit_count, created_at, updated_at
 
 def get_user_from_context(event: APIGatewayProxyEventV2) -> UserContext:
     """Extracts user information from API Gateway JWT authorizer context."""

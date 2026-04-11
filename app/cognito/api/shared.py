@@ -2,6 +2,7 @@ import json
 from typing import Any, Dict, List, Optional, cast, TypedDict
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
+from datetime import datetime
 
 # Type aliases for AWS Lambda
 from typing import TYPE_CHECKING
@@ -29,6 +30,8 @@ class UserDto(CamelModel):
     email: Optional[str] = None
     name: Optional[str] = None
     profile: str
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 class UsersResponseDto(CamelModel):
     users: List[UserDto]
@@ -41,6 +44,12 @@ class APIResponse(TypedDict):
     statusCode: int
     headers: Dict[str, str]
     body: str
+
+class DecimalEncoder(json.JSONEncoder):
+    def default(self, obj: Any) -> Any:
+        if isinstance(obj, datetime):
+            return obj.isoformat().replace('+00:00', 'Z')
+        return super(DecimalEncoder, self).default(obj)
 
 def get_user_info(event: APIGatewayProxyEventV2) -> UserContext:
     """Extract authentication status and user info from the API Gateway JWT authorizer context."""
@@ -78,5 +87,5 @@ def create_response(status_code: int, body: Any) -> APIResponse:
             'Access-Control-Allow-Headers': 'Content-Type,Authorization',
             'Access-Control-Allow-Methods': 'GET,PATCH,OPTIONS',
         },
-        'body': json.dumps(body),
+        'body': json.dumps(body, cls=DecimalEncoder),
     }
