@@ -1,120 +1,89 @@
 import json
-import dataclasses
+import os
 from decimal import Decimal
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, cast, TypedDict, Type, TypeVar
-from dataclasses import dataclass, asdict
+from typing import Any, Dict, List, Optional, Type, TypeVar, TypedDict
+from typing_extensions import NotRequired
 from enum import Enum
+from pydantic import BaseModel, ConfigDict, Field
+from pydantic.alias_generators import to_camel
 
 # Type aliases for AWS Lambda
-LambdaEvent = Dict[str, Any]
-LambdaContext = Any
-
-T = TypeVar('T', bound='CalendarItem')
-
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from aws_lambda_typing.events import APIGatewayProxyEventV2
+    from aws_lambda_typing.context import Context
+else:
+    APIGatewayProxyEventV2 = object
+    Context = object
 
 class Visibility(str, Enum):
     PUBLIC = "PUBLIC"
     PRIVATE = "PRIVATE"
 
-
 class Status(str, Enum):
     PENDING_APPROVAL = "PENDING_APPROVAL"
     APPROVED = "APPROVED"
 
+class CamelModel(BaseModel):
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
 
-class LambdaResponse(TypedDict):
-    """Structured API Gateway response."""
-    statusCode: int
-    headers: Dict[str, str]
-    body: str
-
-
-@dataclass
-class UserContext:
-    """Authentication context for the current user."""
+class UserContext(CamelModel):
     is_authenticated: bool
     is_admin: bool = False
     email: Optional[str] = None
     user_id: Optional[str] = None
 
-
-@dataclass
-class CalendarItem:
-    """Internal domain object — matches DynamoDB storage shape, including GSI keys."""
+class CalendarItem(CamelModel):
     id: str
     date: str               # YYYY-MM-DD
     title: str
-    gsipk: str = "EVENT"   # Static GSI partition key — internal, never exposed in responses
+    gsipk: str = "EVENT"   # Static GSI partition key
     description: str = ""
-    visibility: str = Visibility.PUBLIC.value
-    status: str = Status.PENDING_APPROVAL.value
-    createdBy: str = "unknown"
-    createdByUserId: Optional[str] = None
-    createdAt: Optional[str] = None  # ISO 8601
-    updatedAt: Optional[str] = None  # ISO 8601
+    visibility: Visibility = Visibility.PUBLIC
+    status: Status = Status.PENDING_APPROVAL
+    created_by: str = "unknown"
+    created_by_user_id: Optional[str] = None
+    created_at: Optional[str] = None  # ISO 8601
+    updated_at: Optional[str] = None  # ISO 8601
 
-    def to_dict(self) -> Dict[str, Any]:
-        """Serialize for DynamoDB storage (includes gsipk)."""
-        return {k: v for k, v in asdict(self).items() if v is not None}
+    def to_dynamo(self) -> Dict[str, Any]:
+        """Serialize for DynamoDB storage."""
+        return self.model_dump(exclude_none=True, by_alias=False)
 
-    def to_response(self) -> 'EventResponse':
-        """Return the public-facing DTO, stripping DynamoDB internals."""
-        return EventResponse(
-            id=self.id,
-            date=self.date,
-            title=self.title,
-            description=self.description,
-            visibility=self.visibility,
-            status=self.status,
-            createdBy=self.createdBy,
-            createdByUserId=self.createdByUserId,
-            createdAt=self.createdAt,
-            updatedAt=self.updatedAt,
-        )
-
-    @classmethod
-    def from_dict(cls: Type[T], data: Dict[str, Any]) -> T:
-        """Hydrate from a DynamoDB item dict."""
-        valid_fields = {f.name for f in dataclasses.fields(cls)}
-        return cls(**{k: v for k, v in data.items() if k in valid_fields})
-
-
-@dataclass
-class EventResponse:
-    """Public API response shape — no DynamoDB internals."""
-    id: str
-    date: str
+class CreateItemRequest(CamelModel):
     title: str
+    date: str
     description: str = ""
-    visibility: str = Visibility.PUBLIC.value
-    status: str = Status.PENDING_APPROVAL.value
-    createdBy: str = "unknown"
-    createdByUserId: Optional[str] = None
-    createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
+    visibility: Optional[Visibility] = None
 
-    def to_dict(self) -> Dict[str, Any]:
-        return {k: v for k, v in asdict(self).items() if v is not None}
+class UpdateItemRequest(CamelModel):
+    title: Optional[str] = None
+    date: Optional[str] = None
+    description: Optional[str] = None
+    visibility: Optional[Visibility] = None
+    status: Optional[Status] = None
 
+class APIResponse(TypedDict):
+    statusCode: int
+    headers: Dict[str, str]
+    body: str
+    isBase64Encoded: NotRequired[bool]
 
 def now_iso() -> str:
-    """Current UTC time as an ISO 8601 string (e.g. 2026-03-24T15:30:00Z)."""
+    """Current UTC time as an ISO 8601 string."""
     return datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
 
+class DecimalEncoder(json.JSONEncoder):
+    def default(self, obj: Any) -> Any:
+        if isinstance(obj, Decimal):
+            return int(obj) if obj % 1 == 0 else float(obj)
+        return super(DecimalEncoder, self).default(obj)
 
-def json_serial(obj: Any) -> Any:
-    """JSON serializer for types not handled by the default encoder."""
-    if isinstance(obj, Decimal):
-        return int(obj) if obj % 1 == 0 else float(obj)
-    if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
-        return {k: v for k, v in dataclasses.asdict(obj).items() if v is not None}
-    if isinstance(obj, Enum):
-        return obj.value
-    raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
-
-
-def get_user_info(event: LambdaEvent) -> UserContext:
+def get_user_info(event: APIGatewayProxyEventV2) -> UserContext:
     """Extract authentication status and user info from event."""
     request_context = event.get('requestContext', {})
     authorizer = request_context.get('authorizer', {})
@@ -128,33 +97,25 @@ def get_user_info(event: LambdaEvent) -> UserContext:
         claims = authorizer.get('claims', {})
 
     if claims:
-        # Extract groups - handle both list and delimited string formats.
-        # API Gateway serializes JWT array claims differently depending on version/config.
-        # Comma-separated is common for REST APIs, Space-separated for some HTTP API setups.
-        groups_raw = claims.get('cognito:groups')
+        groups_raw = claims.get('cognito:groups') or claims.get('groups') or []
         groups: List[str] = []
         
         if isinstance(groups_raw, list):
             groups = [str(g) for g in groups_raw]
         elif isinstance(groups_raw, str):
-            # Replace common delimiters with space and split
             groups = groups_raw.strip('[]').split()
         
         return UserContext(
             is_authenticated=True,
             is_admin="admin" in groups,
-            email=cast(Optional[str], claims.get('email', 'unknown')),
-            user_id=cast(Optional[str], claims.get('sub'))
+            email=claims.get('email', 'unknown'),
+            user_id=claims.get('sub')
         )
 
     return UserContext(is_authenticated=False)
 
-
-def create_response(status_code: int, body: Any, authenticated: Optional[bool] = None) -> LambdaResponse:
+def create_response(status_code: int, body: Any) -> APIResponse:
     """Create a standard API Gateway response."""
-    if authenticated is not None and isinstance(body, dict):
-        body['authenticated'] = authenticated
-
     return {
         'statusCode': status_code,
         'headers': {
@@ -163,5 +124,5 @@ def create_response(status_code: int, body: Any, authenticated: Optional[bool] =
             'Access-Control-Allow-Headers': 'Content-Type,Authorization',
             'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
         },
-        'body': json.dumps(body, default=json_serial)
+        'body': json.dumps(body, cls=DecimalEncoder)
     }

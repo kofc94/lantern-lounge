@@ -6,6 +6,21 @@ data "archive_file" "user_management" {
   output_path = "${path.module}/user_management.zip"
 }
 
+# ── Dependencies Lambda Layer (Pydantic) ──────────────────────────────────────
+
+data "archive_file" "cognito_deps_layer" {
+  type        = "zip"
+  source_dir  = "${path.module}/.layer"
+  output_path = "${path.module}/cognito-deps-layer.zip"
+}
+
+resource "aws_lambda_layer_version" "cognito_deps" {
+  layer_name          = "${var.project_name}-cognito-deps"
+  filename            = data.archive_file.cognito_deps_layer.output_path
+  source_code_hash    = data.archive_file.cognito_deps_layer.output_base64sha256
+  compatible_runtimes = ["python3.11"]
+}
+
 data "archive_file" "post_confirmation" {
   type        = "zip"
   source_file = "${path.module}/auth/post_confirmation.py"
@@ -71,6 +86,7 @@ resource "aws_lambda_function" "post_confirmation" {
   source_code_hash = data.archive_file.post_confirmation.output_base64sha256
   runtime          = "python3.11"
   timeout          = 10
+  layers           = [aws_lambda_layer_version.cognito_deps.arn]
 
   environment {
     variables = {
@@ -149,6 +165,7 @@ resource "aws_lambda_function" "pre_authentication" {
   source_code_hash = data.archive_file.pre_authentication.output_base64sha256
   runtime          = "python3.11"
   timeout          = 10
+  layers           = [aws_lambda_layer_version.cognito_deps.arn]
 
   environment {
     variables = {
@@ -218,6 +235,7 @@ resource "aws_lambda_function" "validate_user" {
   source_code_hash = data.archive_file.validate_user.output_base64sha256
   runtime          = "python3.11"
   timeout          = 10
+  layers           = [aws_lambda_layer_version.cognito_deps.arn]
 
   environment {
     variables = {
@@ -306,6 +324,7 @@ resource "aws_lambda_function" "user_management" {
   source_code_hash = data.archive_file.user_management.output_base64sha256
   runtime          = "python3.11"
   timeout          = 30
+  layers           = [aws_lambda_layer_version.cognito_deps.arn]
 
   environment {
     variables = {

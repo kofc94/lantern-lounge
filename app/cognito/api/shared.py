@@ -1,24 +1,48 @@
 import json
-import dataclasses
 from typing import Any, Dict, List, Optional, cast, TypedDict
-from dataclasses import dataclass
+from pydantic import BaseModel, ConfigDict, Field
+from pydantic.alias_generators import to_camel
 
 # Type aliases for AWS Lambda
-LambdaEvent = Dict[str, Any]
-LambdaContext = Any
-LambdaResponse = TypedDict('LambdaResponse', {'statusCode': int, 'headers': Dict[str, str], 'body': str})
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from aws_lambda_typing.events import APIGatewayProxyEventV2
+    from aws_lambda_typing.context import Context
+else:
+    APIGatewayProxyEventV2 = object
+    Context = object
 
+class CamelModel(BaseModel):
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
 
-@dataclass
-class UserContext:
-    """Authentication context for the current user."""
+class UserContext(CamelModel):
     is_authenticated: bool
     is_admin: bool = False
     email: Optional[str] = None
     user_id: Optional[str] = None
 
+class UserDto(CamelModel):
+    username: str
+    email: Optional[str] = None
+    name: Optional[str] = None
+    profile: str
 
-def get_user_info(event: LambdaEvent) -> UserContext:
+class UsersResponseDto(CamelModel):
+    users: List[UserDto]
+    pagination_token: Optional[str] = None
+
+class UpdateUserRoleRequest(CamelModel):
+    profile: str
+
+class APIResponse(TypedDict):
+    statusCode: int
+    headers: Dict[str, str]
+    body: str
+
+def get_user_info(event: APIGatewayProxyEventV2) -> UserContext:
     """Extract authentication status and user info from the API Gateway JWT authorizer context."""
     request_context = event.get('requestContext', {})
     authorizer = request_context.get('authorizer', {})
@@ -30,7 +54,7 @@ def get_user_info(event: LambdaEvent) -> UserContext:
     if not claims:
         return UserContext(is_authenticated=False)
 
-    groups_raw = claims.get('cognito:groups')
+    groups_raw = claims.get('cognito:groups') or claims.get('groups') or []
     groups: List[str] = []
     if isinstance(groups_raw, list):
         groups = [str(g) for g in groups_raw]
@@ -40,12 +64,11 @@ def get_user_info(event: LambdaEvent) -> UserContext:
     return UserContext(
         is_authenticated=True,
         is_admin='admin' in groups,
-        email=cast(Optional[str], claims.get('email')),
-        user_id=cast(Optional[str], claims.get('sub')),
+        email=claims.get('email'),
+        user_id=claims.get('sub'),
     )
 
-
-def create_response(status_code: int, body: Any) -> LambdaResponse:
+def create_response(status_code: int, body: Any) -> APIResponse:
     """Create a standard API Gateway response."""
     return {
         'statusCode': status_code,

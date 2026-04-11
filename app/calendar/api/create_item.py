@@ -1,12 +1,14 @@
 import json
 import os
-import uuid
 import boto3
-from typing import Any, Dict, Optional
+from ulid import ULID
+from datetime import datetime
+from pydantic import ValidationError
 from shared import (
-    LambdaEvent, LambdaContext, LambdaResponse,
+    APIGatewayProxyEventV2, Context, APIResponse,
     get_user_info, create_response,
     CalendarItem, Visibility, Status, now_iso,
+    CreateItemRequest
 )
 
 dynamodb = boto3.resource('dynamodb')
@@ -14,7 +16,7 @@ table_name = os.environ.get('DYNAMODB_TABLE', 'lantern-lounge-calendar-items')
 table = dynamodb.Table(table_name)
 
 
-def handler(event: LambdaEvent, context: LambdaContext) -> LambdaResponse:
+def handler(event: APIGatewayProxyEventV2, context: Context) -> APIResponse:
     """Create a new calendar event. Requires authentication."""
     user = get_user_info(event)
 
@@ -22,47 +24,40 @@ def handler(event: LambdaEvent, context: LambdaContext) -> LambdaResponse:
         return create_response(401, {'error': 'Unauthorized'})
 
     try:
-        body: Dict[str, Any] = json.loads(event.get('body', '{}'))
-
-        for field in ['title', 'date']:
-            if field not in body:
-                return create_response(400, {
-                    'error': 'Bad request',
-                    'message': f'Missing required field: {field}'
-                })
+        body_str = event.get('body', '{}')
+        try:
+            request_data = CreateItemRequest.model_validate_json(body_str)
+        except ValidationError as ve:
+            return create_response(400, {'error': 'Bad request', 'message': f'Validation failed: {ve.errors()}'})
 
         if user.is_admin:
-            visibility = body.get('visibility', Visibility.PUBLIC.value)
-            if visibility not in [v.value for v in Visibility]:
-                visibility = Visibility.PUBLIC.value
-            status = Status.APPROVED.value
+            visibility = request_data.visibility or Visibility.PUBLIC
+            status = Status.APPROVED
         else:
-            visibility = Visibility.PUBLIC.value
-            status = Status.PENDING_APPROVAL.value
+            visibility = Visibility.PUBLIC
+            status = Status.PENDING_APPROVAL
 
         now = now_iso()
         item = CalendarItem(
-            id=str(uuid.uuid4()),
-            date=body['date'],
-            title=body['title'],
-            description=body.get('description', ''),
+            id=str(ULID()),
+            date=request_data.date,
+            title=request_data.title,
+            description=request_data.description,
             visibility=visibility,
             status=status,
-            createdBy=user.email or 'unknown',
-            createdByUserId=user.user_id,
-            createdAt=now,
-            updatedAt=now,
+            created_by=user.email or 'unknown',
+            created_by_user_id=user.user_id,
+            created_at=now,
+            updated_at=now,
         )
 
-        table.put_item(Item=item.to_dict())
+        table.put_item(Item=item.to_dynamo())
 
         return create_response(201, {
             'message': 'Calendar item created successfully',
-            'item': item.to_response(),
+            'item': item.model_dump(by_alias=True),
         })
 
-    except json.JSONDecodeError:
-        return create_response(400, {'error': 'Bad request', 'message': 'Invalid JSON in request body'})
     except Exception as e:
         print(f"Error: {str(e)}")
         return create_response(500, {'error': 'Internal server error', 'message': str(e)})

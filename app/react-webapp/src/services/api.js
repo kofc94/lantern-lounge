@@ -247,7 +247,8 @@ export const fetchUsers = async (authToken, paginationToken = null) => {
       const errorData = await response.json();
       throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
     }
-    return await response.json();
+    const data = await response.json();
+    return data;
   } catch (error) {
     console.error('Error fetching users:', error);
     throw error;
@@ -278,7 +279,8 @@ export const updateUserRole = async (username, profile, authToken) => {
       const errorData = await response.json();
       throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
     }
-    return await response.json();
+    const data = await response.json();
+    return data;
   } catch (error) {
     console.error('Error updating user role:', error);
     throw error;
