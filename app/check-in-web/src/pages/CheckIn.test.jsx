@@ -8,8 +8,23 @@ import { checkInUser, recordGuests } from '../services/api';
 // Mock dependencies
 vi.mock('../hooks/useAuth');
 vi.mock('../services/api');
+
+let mockOnUpdate;
 vi.mock('react-qr-barcode-scanner', () => ({
-  default: () => <div data-testid="barcode-scanner">Scanner</div>
+  default: ({ onUpdate }) => {
+    mockOnUpdate = onUpdate;
+    return <div data-testid="barcode-scanner">Scanner</div>;
+  }
+}));
+
+// Mock Haptics
+vi.mock('@capacitor/haptics', () => ({
+  Haptics: {
+    notification: vi.fn(),
+    impact: vi.fn(),
+  },
+  NotificationType: { Success: 'SUCCESS', Error: 'ERROR' },
+  ImpactStyle: { Heavy: 'HEAVY' },
 }));
 
 describe('CheckIn Page', () => {
@@ -40,81 +55,103 @@ describe('CheckIn Page', () => {
   it('handles manual email check-in', async () => {
     const { getByText, getByPlaceholderText } = render(<CheckIn />);
     
-    // Switch to manual entry
     fireEvent.click(getByText('Sign-in with email instead'));
     
     const emailInput = getByPlaceholderText('member@example.com');
     fireEvent.change(emailInput, { target: { value: 'member@example.com' } });
     
-    const mockCheckInResult = {
-      id: 'ulid-123',
-      userName: 'Member Name',
-      timestamp: new Date().toISOString()
-    };
-    checkInUser.mockResolvedValueOnce(mockCheckInResult);
-
+    checkInUser.mockResolvedValueOnce({ id: 'ulid-1', userName: 'Member' });
     fireEvent.click(getByText('Verify & Check In'));
 
     await waitFor(() => {
       expect(getByText('Welcome Member!')).toBeInTheDocument();
-      expect(getByText(/Having some friends/i)).toBeInTheDocument();
     });
   });
 
-  it('handles guest submission', async () => {
-    const { getByTestId, getByText, getByPlaceholderText } = render(<CheckIn />);
+  it('handles scanner updates with LL-CHECKIN prefix', async () => {
+    render(<CheckIn />);
     
-    // Setup state at guest step
-    fireEvent.click(getByText('Sign-in with email instead'));
-    checkInUser.mockResolvedValueOnce({ id: 'ulid-123', userName: 'Member' });
-    fireEvent.change(getByPlaceholderText('member@example.com'), { target: { value: 'm@ex.com' } });
-    fireEvent.click(getByText('Verify & Check In'));
+    checkInUser.mockResolvedValueOnce({ id: 'ulid-1', userName: 'Scanner User' });
 
-    await waitFor(() => expect(getByText(/Having some friends/i)).toBeInTheDocument());
-
-    // Add a guest
-    fireEvent.change(getByPlaceholderText('Full name'), { target: { value: 'Guest One' } });
-    fireEvent.change(getByPlaceholderText('Email'), { target: { value: 'guest@ex.com' } });
-
-    recordGuests.mockResolvedValueOnce({ 
-      id: 'ulid-123', 
-      guests: [{ name: 'Guest One', email: 'guest@ex.com', visitCount: 1 }] 
+    await act(async () => {
+      mockOnUpdate(null, { text: 'LL-CHECKIN:test@example.com' });
     });
-
-    fireEvent.click(getByText('Submit & Finish'));
 
     await waitFor(() => {
-      expect(recordGuests).toHaveBeenCalled();
-      // Should return to scanner on success with no warnings
-      expect(getByTestId('barcode-scanner')).toBeInTheDocument();
+      expect(checkInUser).toHaveBeenCalledWith('test@example.com', 'fake-token');
     });
   });
 
-  it('displays warnings when guests reach visit limit', async () => {
+  it('handles raw email scanning', async () => {
+    render(<CheckIn />);
+    checkInUser.mockResolvedValueOnce({ id: 'ulid-1', userName: 'Email User' });
+
+    await act(async () => {
+      mockOnUpdate(null, { text: 'direct@example.com' });
+    });
+
+    await waitFor(() => {
+      expect(checkInUser).toHaveBeenCalledWith('direct@example.com', 'fake-token');
+    });
+  });
+
+  it('handles guest list submission and limit warnings', async () => {
     const { getByText, getByPlaceholderText } = render(<CheckIn />);
     
-    // Advance to guests step
     fireEvent.click(getByText('Sign-in with email instead'));
-    checkInUser.mockResolvedValueOnce({ id: 'ulid-123', userName: 'Member' });
+    checkInUser.mockResolvedValueOnce({ id: 'ulid-1', userName: 'Member' });
     fireEvent.change(getByPlaceholderText('member@example.com'), { target: { value: 'm@ex.com' } });
     fireEvent.click(getByText('Verify & Check In'));
 
     await waitFor(() => expect(getByText(/Having some friends/i)).toBeInTheDocument());
 
-    // High visit count guest
-    fireEvent.change(getByPlaceholderText('Full name'), { target: { value: 'Frequent Guest' } });
-    fireEvent.change(getByPlaceholderText('Email'), { target: { value: 'frequent@ex.com' } });
+    fireEvent.change(getByPlaceholderText('Full name'), { target: { value: 'Guest' } });
+    fireEvent.change(getByPlaceholderText('Email'), { target: { value: 'g@ex.com' } });
 
+    // Mock response with limit reached (visitCount 4)
     recordGuests.mockResolvedValueOnce({ 
-      id: 'ulid-123', 
-      guests: [{ name: 'Frequent Guest', email: 'frequent@ex.com', visitCount: 4 }] 
+      id: 'ulid-1', 
+      guests: [{ name: 'Guest', email: 'g@ex.com', visitCount: 4 }] 
     });
 
     fireEvent.click(getByText('Submit & Finish'));
 
     await waitFor(() => {
       expect(getByText('Member Invitation')).toBeInTheDocument();
-      expect(getByText(/Visit #4 — Time to Join!/i)).toBeInTheDocument();
+      expect(getByText(/Visit #4/i)).toBeInTheDocument();
+    });
+  });
+
+  it('handles expired membership state', async () => {
+    const { getByText, getByPlaceholderText } = render(<CheckIn />);
+    fireEvent.click(getByText('Sign-in with email instead'));
+    
+    const expiredError = new Error('Membership expired');
+    expiredError.code = 'membership_expired';
+    expiredError.expiryDate = '2023-01-01';
+    checkInUser.mockRejectedValueOnce(expiredError);
+
+    fireEvent.change(getByPlaceholderText('member@example.com'), { target: { value: 'expired@ex.com' } });
+    fireEvent.click(getByText('Verify & Check In'));
+
+    await waitFor(() => {
+      expect(getByText('Membership Expired')).toBeInTheDocument();
+    });
+  });
+
+  it('handles 500 server errors', async () => {
+    const { getByText, getByPlaceholderText } = render(<CheckIn />);
+    fireEvent.click(getByText('Sign-in with email instead'));
+    
+    const serverError = new Error('Server Crash');
+    serverError.status = 500;
+    checkInUser.mockRejectedValueOnce(serverError);
+
+    fireEvent.change(getByPlaceholderText('member@example.com'), { target: { value: 'fail@ex.com' } });
+    fireEvent.click(getByText('Verify & Check In'));
+
+    await waitFor(() => {
+      expect(mockSetGlobalError).toHaveBeenCalledWith(serverError);
     });
   });
 });

@@ -92,4 +92,50 @@ describe('cognito.js', () => {
       expect(token).toBeNull();
     });
   });
+
+  describe('signUp', () => {
+    it('calls amplifySignUp with correct arguments', async () => {
+      await signUp('Name', 'e@e.com', 'pass');
+      expect(auth.signUp).toHaveBeenCalledWith({
+        username: 'e@e.com',
+        password: 'pass',
+        options: {
+          userAttributes: { email: 'e@e.com', name: 'Name' },
+        },
+      });
+    });
+  });
+
+  describe('confirmRegistration', () => {
+    it('calls confirmSignUp', async () => {
+      await confirmRegistration('e@e.com', '123456');
+      expect(auth.confirmSignUp).toHaveBeenCalledWith({
+        username: 'e@e.com',
+        confirmationCode: '123456',
+      });
+    });
+  });
+
+  describe('resendConfirmationCode', () => {
+    it('calls resendSignUpCode', async () => {
+      await resendConfirmationCode('e@e.com');
+      expect(auth.resendSignUpCode).toHaveBeenCalledWith({
+        username: 'e@e.com',
+      });
+    });
+  });
+
+  describe('signOut', () => {
+    it('calls amplifySignOut', async () => {
+      await signOut();
+      expect(auth.signOut).toHaveBeenCalled();
+    });
+  });
+
+  describe('federatedSignIn', () => {
+    it('calls signInWithRedirect', async () => {
+      await federatedSignIn('Google');
+      expect(auth.signInWithRedirect).toHaveBeenCalledWith({ provider: 'Google' });
+    });
+  });
 });
