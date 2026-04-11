@@ -1,0 +1,88 @@
+import React from 'react';
+import { render, act, waitFor } from '@testing-library/react';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { AuthProvider, AuthContext } from './AuthContext';
+import * as cognitoService from '../services/cognito';
+import { Hub } from 'aws-amplify/utils';
+
+// Mock cognito service
+vi.mock('../services/cognito', () => ({
+  getCurrentUser: vi.fn(),
+  signIn: vi.fn(),
+  signOut: vi.fn(),
+  getAuthToken: vi.fn(),
+}));
+
+// Mock Hub
+vi.mock('aws-amplify/utils', () => ({
+  Hub: {
+    listen: vi.fn(() => vi.fn()),
+  },
+}));
+
+const TestComponent = () => {
+  const context = React.useContext(AuthContext);
+  return (
+    <div>
+      <div data-testid="auth-status">{context.isAuthenticated ? 'authenticated' : 'unauthenticated'}</div>
+      <div data-testid="user-email">{context.currentUser?.email}</div>
+      <div data-testid="loading">{context.isLoading ? 'loading' : 'done'}</div>
+      {context.error && <div data-testid="error">{context.error}</div>}
+      <button onClick={() => context.signIn('test@example.com', 'pass')}>Sign In</button>
+    </div>
+  );
+};
+
+describe('AuthContext', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('provides authentication state and handles successful sign in', async () => {
+    cognitoService.getCurrentUser.mockResolvedValue(null);
+    
+    const { getByTestId, getByText } = render(
+      <AuthProvider>
+        <TestComponent />
+      </AuthProvider>
+    );
+
+    expect(getByTestId('loading')).toHaveTextContent('loading');
+    
+    await waitFor(() => {
+      expect(getByTestId('loading')).toHaveTextContent('done');
+    });
+    expect(getByTestId('auth-status')).toHaveTextContent('unauthenticated');
+
+    // Test sign in
+    const mockUser = { email: 'staff@example.com', groups: ['staff'] };
+    cognitoService.signIn.mockResolvedValueOnce({ success: true });
+    cognitoService.getCurrentUser.mockResolvedValueOnce(mockUser);
+
+    await act(async () => {
+      getByText('Sign In').click();
+    });
+
+    await waitFor(() => {
+      expect(getByTestId('auth-status')).toHaveTextContent('authenticated');
+      expect(getByTestId('user-email')).toHaveTextContent('staff@example.com');
+    });
+  });
+
+  it('performs hard-kick for non-staff users', async () => {
+    const nonStaffUser = { email: 'user@example.com', groups: ['member'] };
+    cognitoService.getCurrentUser.mockResolvedValue(nonStaffUser);
+    
+    const { getByTestId } = render(
+      <AuthProvider>
+        <TestComponent />
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(cognitoService.signOut).toHaveBeenCalled();
+      expect(getByTestId('auth-status')).toHaveTextContent('unauthenticated');
+      expect(getByTestId('error')).toHaveTextContent(/Access Denied/);
+    });
+  });
+});
