@@ -13,6 +13,11 @@ output "cognito_user_pool_client_id" {
   value       = aws_cognito_user_pool_client.calendar_app.id
 }
 
+output "checkin_app_client_id" {
+  description = "Cognito App Client ID for the staff check-in app"
+  value       = aws_cognito_user_pool_client.checkin_app.id
+}
+
 output "cognito_domain" {
   description = "Cognito User Pool Domain"
   value       = aws_cognito_user_pool_domain.calendar_domain.domain

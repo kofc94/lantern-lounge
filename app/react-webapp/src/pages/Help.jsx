@@ -10,7 +10,7 @@ const faqs = [
         <Link to="/join-us" className="text-accent-gold hover:text-white transition-colors">
           Join Us
         </Link>{' '}
-        page to sign up through Zeffy — annual dues are just $20.
+        page to learn how to sign up — annual dues are just $20.
       </>
     ),
   },
@@ -18,13 +18,12 @@ const faqs = [
     q: 'How do I create a website account?',
     a: (
       <>
-        Once you have a Zeffy membership, head to the{' '}
+        Once you are a member, head to the{' '}
         <Link to="/register" className="text-accent-gold hover:text-white transition-colors">
           Register
         </Link>{' '}
         page to create your lanternlounge.org account. You can sign up with Google or
-        with an email and password. Your name and email can be prefilled from the link
-        in your Zeffy welcome email.
+        with an email and password.
       </>
     ),
   },

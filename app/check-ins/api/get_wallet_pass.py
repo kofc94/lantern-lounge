@@ -1,27 +1,39 @@
 import json
 import time
 import boto3
+from typing import Any, Dict, Optional
+
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from mypy_boto3_ssm import SSMClient
+    from aws_lambda_typing.events import APIGatewayProxyEventV2
+    from aws_lambda_typing.context import Context
+else:
+    SSMClient = object
+    APIGatewayProxyEventV2 = object
+    Context = object
+
 from shared import get_response, get_user_from_context
+from domain import UserContext, APIResponse, WalletPassResponseDto
 
-_ssm = boto3.client("ssm")
+_ssm: SSMClient = boto3.client("ssm")
 
-
-def handler(event, context):
+def handler(event: APIGatewayProxyEventV2, context: Context) -> APIResponse:
     user = get_user_from_context(event)
-    if not user.get("sub"):
+    if not user.sub:
         return get_response(401, {"error": "Unauthorized"})
 
-    wallet_token = f"LL-{user['sub']}"
-    result = {"wallet_token": wallet_token}
-
+    wallet_token = f"LL-{user.sub}"
     google_save_url = _build_google_wallet_url(user)
-    if google_save_url:
-        result["google_save_url"] = google_save_url
+    
+    response_dto = WalletPassResponseDto(
+        wallet_token=wallet_token,
+        google_save_url=google_save_url
+    )
 
-    return get_response(200, result)
+    return get_response(200, response_dto.model_dump(exclude_none=True, by_alias=True))
 
-
-def _build_google_wallet_url(user):
+def _build_google_wallet_url(user: UserContext) -> Optional[str]:
     """Returns an 'Add to Google Wallet' URL, or None if not configured."""
     try:
         import jwt as pyjwt
@@ -30,30 +42,29 @@ def _build_google_wallet_url(user):
         print(f"Wallet deps not available: {e}")
         return None
 
-    # Get Issuer ID (set manually by admin after registering at pay.google.com/business/console)
     try:
         issuer_resp = _ssm.get_parameter(Name="/lantern-lounge/google/wallet-issuer-id")
-        issuer_id = issuer_resp["Parameter"]["Value"].strip()
-    except _ssm.exceptions.ParameterNotFound:
-        print("Google Wallet issuer ID not configured; skipping")
+        val = issuer_resp.get("Parameter", {}).get("Value", "")
+        issuer_id = val.strip()
+    except Exception as e:
+        print("Google Wallet issuer ID not configured; skipping", e)
         return None
 
-    # Get service account key (created by GCP Terraform in infrastructure/gcp)
     try:
         key_resp = _ssm.get_parameter(
             Name="/lantern-lounge/google/wallet-service-account-key",
             WithDecryption=True,
         )
-        sa_key = json.loads(key_resp["Parameter"]["Value"])
+        sa_key_str = key_resp.get("Parameter", {}).get("Value", "")
+        sa_key = json.loads(sa_key_str)
     except Exception as e:
         print(f"Could not load wallet service account key: {e}")
         return None
 
-    # Build a Generic pass object for the member
-    sub_safe = user["sub"].replace("-", "_")
+    sub_safe = user.sub.replace("-", "_")
     object_id = f"{issuer_id}.ll_{sub_safe}"
     class_id = f"{issuer_id}.lantern_lounge_membership"
-    display_name = user.get("name") or user.get("email", "Member")
+    display_name = user.name or user.email or "Member"
 
     pass_object = {
         "id": object_id,
@@ -71,13 +82,13 @@ def _build_google_wallet_url(user):
         },
         "barcode": {
             "type": "QR_CODE",
-            "value": user.get("email", user["sub"]),
+            "value": user.email or user.sub,
         },
         "state": "ACTIVE",
     }
 
     jwt_payload = {
-        "iss": sa_key["client_email"],
+        "iss": sa_key.get("client_email", ""),
         "aud": "google",
         "typ": "savetowallet",
         "iat": int(time.time()),
@@ -86,11 +97,12 @@ def _build_google_wallet_url(user):
 
     try:
         private_key = load_pem_private_key(
-            sa_key["private_key"].encode(),
+            sa_key.get("private_key", "").encode(),
             password=None,
         )
         token = pyjwt.encode(jwt_payload, private_key, algorithm="RS256")
-        return f"https://pay.google.com/gp/v/save/{token}"
+        token_str = token.decode("utf-8") if isinstance(token, bytes) else token
+        return f"https://pay.google.com/gp/v/save/{token_str}"
     except Exception as e:
         print(f"JWT signing failed: {e}")
         return None

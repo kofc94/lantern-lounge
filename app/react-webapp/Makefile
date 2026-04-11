@@ -29,6 +29,7 @@ deploy: test build
 		--delete \
 		--exclude ".DS_Store" \
 		--exclude "*.map" \
+		--exclude "checkin/*" \
 		--cache-control "public,max-age=31536000,immutable" \
 		--exclude "index.html"
 	aws s3 cp dist/index.html s3://$(BUCKET_NAME)/index.html \

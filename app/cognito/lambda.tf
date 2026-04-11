@@ -98,6 +98,73 @@ resource "aws_lambda_permission" "cognito_post_confirmation" {
   source_arn    = try(tolist(data.aws_cognito_user_pools.main.arns)[0], aws_cognito_user_pool.calendar_users.arn)
 }
 
+data "archive_file" "pre_authentication" {
+  type        = "zip"
+  source_file = "${path.module}/auth/pre_authentication.py"
+  output_path = "${path.module}/pre_authentication.zip"
+}
+
+# ── Pre-authentication Lambda (blocks non-staff from staff-app client) ───────
+
+resource "aws_iam_role" "pre_authentication_role" {
+  name = "${var.project_name}-pre-authentication-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "pre_authentication_basic" {
+  role       = aws_iam_role.pre_authentication_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+resource "aws_iam_role_policy" "pre_authentication_cognito" {
+  name = "${var.project_name}-pre-authentication-cognito"
+  role = aws_iam_role.pre_authentication_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = [
+        "cognito-idp:AdminListGroupsForUser",
+        "cognito-idp:ListUserPoolClients"
+      ]
+      Resource = try(tolist(data.aws_cognito_user_pools.main.arns)[0], aws_cognito_user_pool.calendar_users.arn)
+    }]
+  })
+}
+
+resource "aws_lambda_function" "pre_authentication" {
+  filename         = data.archive_file.pre_authentication.output_path
+  function_name    = "${var.project_name}-pre-authentication"
+  role             = aws_iam_role.pre_authentication_role.arn
+  handler          = "pre_authentication.handler"
+  source_code_hash = data.archive_file.pre_authentication.output_base64sha256
+  runtime          = "python3.11"
+  timeout          = 10
+
+  environment {
+    variables = {
+      USER_POOL_ID      = try(tolist(data.aws_cognito_user_pools.main.ids)[0], "")
+    }
+  }
+}
+
+resource "aws_lambda_permission" "cognito_pre_authentication" {
+  statement_id  = "AllowCognitoInvokePreAuth"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.pre_authentication.function_name
+  principal     = "cognito-idp.amazonaws.com"
+  source_arn    = try(tolist(data.aws_cognito_user_pools.main.arns)[0], aws_cognito_user_pool.calendar_users.arn)
+}
+
 data "archive_file" "validate_user" {
   type        = "zip"
   source_file = "${path.module}/auth/validate_user.py"

@@ -128,6 +128,7 @@ resource "aws_lambda_function" "get_wallet_pass" {
     variables = {
       CHECKINS_TABLE       = aws_dynamodb_table.check_ins.name
       COGNITO_API_ENDPOINT = data.terraform_remote_state.cognito.outputs.cognito_api_endpoint
+      DEBUG                = "true"
     }
   }
 }
@@ -142,6 +143,12 @@ resource "aws_lambda_function" "get_apple_wallet_pass" {
   runtime          = "python3.11"
   timeout          = 30
   layers           = [aws_lambda_layer_version.wallet_deps.arn]
+
+  environment {
+    variables = {
+      DEBUG = "true"
+    }
+  }
 }
 
 # Lambda function: Check In User (email)
@@ -153,17 +160,31 @@ resource "aws_lambda_function" "check_in_user" {
   source_code_hash = data.archive_file.checkins_api.output_base64sha256
   runtime          = "python3.11"
   timeout          = 30
+  layers           = [aws_lambda_layer_version.wallet_deps.arn]
+
+  environment {
+    variables = {
+      DEBUG = "true"
+    }
+  }
 }
 
-# Lambda function: Check In By Scan (Zeffy QR)
-resource "aws_lambda_function" "check_in_by_scan" {
+# Lambda function: Record Guests
+resource "aws_lambda_function" "record_guests" {
   filename         = data.archive_file.checkins_api.output_path
-  function_name    = "${var.project_name}-check-in-by-scan"
+  function_name    = "${var.project_name}-record-guests"
   role             = aws_iam_role.checkins_lambda_role.arn
-  handler          = "check_in_by_scan.handler"
+  handler          = "record_guests.handler"
   source_code_hash = data.archive_file.checkins_api.output_base64sha256
   runtime          = "python3.11"
   timeout          = 30
+  layers           = [aws_lambda_layer_version.wallet_deps.arn]
+
+  environment {
+    variables = {
+      DEBUG = "true"
+    }
+  }
 }
 
 # Lambda permissions for API Gateway
@@ -191,10 +212,10 @@ resource "aws_lambda_permission" "api_gateway_check_in" {
   source_arn    = "${aws_apigatewayv2_api.checkins_api.execution_arn}/*/*"
 }
 
-resource "aws_lambda_permission" "api_gateway_check_in_by_scan" {
-  statement_id  = "AllowAPIGatewayInvokeCheckInByScan"
+resource "aws_lambda_permission" "api_gateway_record_guests" {
+  statement_id  = "AllowAPIGatewayInvokeRecordGuests"
   action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.check_in_by_scan.function_name
+  function_name = aws_lambda_function.record_guests.function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.checkins_api.execution_arn}/*/*"
 }

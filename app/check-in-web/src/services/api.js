@@ -169,40 +169,61 @@ export const fetchWalletPass = async (authToken) => {
 
 /**
  * Record a check-in (Staff only)
- * @param {string} walletToken - Token from guest's QR code (optional)
  * @param {string} email - Guest's email address (optional)
  * @param {string} authToken - Staff JWT auth token (required)
  * @returns {Promise<Object>} - Check-in result
  */
-export const checkInUser = async (email, authToken, guests = []) => {
+export const checkInUser = async (email, authToken) => {
   if (!authToken) throw new Error('Unauthorized');
   const base = CONFIG.checkinsApiEndpoint || CONFIG.apiEndpoint;
   const response = await fetch(`${base}${CONFIG.api.checkIn}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
-    body: JSON.stringify({ email, guests }),
+    body: JSON.stringify({ email }),
   });
   if (!response.ok) {
-    const data = await response.json();
-    throw new Error(data.error || 'Failed to check in');
+    let data = {};
+    try {
+      data = await response.json();
+    } catch (e) {
+      console.error('Failed to parse error response as JSON', e);
+    }
+    const err = new Error(data.error || data.message || `Check-in failed (Status ${response.status})`);
+    err.status = response.status;
+    err.details = data.details || data.trace;
+    err.code = data.code;
+    err.expiryDate = data.expiryDate;
+    throw err;
   }
   return response.json();
 };
 
-export const checkInByScan = async (zeffyToken, authToken, guests = []) => {
+/**
+ * Record guests for a check-in (Staff only)
+ * @param {string} checkinId - ID of the member check-in
+ * @param {Array} guests - List of guests to record
+ * @param {string} authToken - Staff JWT auth token
+ * @returns {Promise<Object>} - Guest record results
+ */
+export const recordGuests = async (checkinId, guests, authToken) => {
   if (!authToken) throw new Error('Unauthorized');
   const base = CONFIG.checkinsApiEndpoint || CONFIG.apiEndpoint;
-  const response = await fetch(`${base}${CONFIG.api.checkInScan}`, {
+  const path = CONFIG.api.recordGuests.replace(':id', checkinId);
+  const response = await fetch(`${base}${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
-    body: JSON.stringify({ zeffy_token: zeffyToken, guests }),
+    body: JSON.stringify({ guests }),
   });
   if (!response.ok) {
-    const data = await response.json();
-    const err = new Error(data.error || 'Failed to check in');
-    err.code = data.code;
-    err.zeffyMember = data.zeffy_member;
-    err.expiryDate = data.expiry_date;
+    let data = {};
+    try {
+      data = await response.json();
+    } catch (e) {
+      console.error('Failed to parse error response as JSON', e);
+    }
+    const err = new Error(data.error || data.message || `Failed to record guests (Status ${response.status})`);
+    err.status = response.status;
+    err.details = data.details || data.trace;
     throw err;
   }
   return response.json();
@@ -215,5 +236,5 @@ export default {
   deleteEvent,
   fetchWalletPass,
   checkInUser,
-  checkInByScan,
+  recordGuests,
 };

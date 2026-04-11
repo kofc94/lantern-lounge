@@ -26,6 +26,18 @@ preview:
 lint:
 	npm run lint
 
+# Native Mobile Commands
+ios: build
+	npx cap sync ios
+	npx cap open ios
+
+android: build
+	npx cap sync android
+	npx cap open android
+
+sync:
+	npx cap sync
+
 deploy: build
 	@if [ -z "$(BUCKET_NAME)" ] || [ -z "$(DISTRIBUTION_ID)" ]; then \
 		echo "❌ Error: Could not get bucket name or distribution ID from OpenTofu"; \

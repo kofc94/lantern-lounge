@@ -68,6 +68,7 @@ resource "aws_cognito_user_pool" "calendar_users" {
 
   lambda_config {
     post_confirmation = aws_lambda_function.post_confirmation.arn
+    pre_authentication = aws_lambda_function.pre_authentication.arn
   }
 
   tags = {
@@ -159,11 +160,54 @@ resource "aws_cognito_user_group" "member" {
   precedence   = 10
 }
 
+resource "aws_cognito_user_group" "staff" {
+  name         = "staff"
+  user_pool_id = aws_cognito_user_pool.calendar_users.id
+  description  = "Club staff members with check-in privileges"
+  precedence   = 5
+}
+
 resource "aws_cognito_user_group" "admin" {
   name         = "admin"
   user_pool_id = aws_cognito_user_pool.calendar_users.id
   description  = "Administrators with elevated privileges"
   precedence   = 1
+}
+
+# App Client for the Staff Check-In Application
+resource "aws_cognito_user_pool_client" "checkin_app" {
+  name         = "${var.project_name}-checkin-app"
+  user_pool_id = aws_cognito_user_pool.calendar_users.id
+
+  id_token_validity      = 60
+  access_token_validity  = 60
+  refresh_token_validity = 30
+
+  token_validity_units {
+    id_token      = "minutes"
+    access_token  = "minutes"
+    refresh_token = "days"
+  }
+
+  allowed_oauth_flows_user_pool_client = true
+  allowed_oauth_flows                  = ["implicit", "code"]
+  allowed_oauth_scopes                 = ["email", "openid", "profile", "aws.cognito.signin.user.admin"]
+
+  callback_urls = ["https://checkin.lanternlounge.org/", "http://localhost:5173/"]
+  logout_urls   = ["https://checkin.lanternlounge.org/", "http://localhost:5173/"]
+
+  supported_identity_providers = ["COGNITO", "Google"]
+  enable_token_revocation      = true
+  prevent_user_existence_errors = "ENABLED"
+
+  read_attributes  = ["email", "email_verified", "name"]
+  write_attributes = ["email", "name"]
+
+  explicit_auth_flows = [
+    "ALLOW_USER_SRP_AUTH",
+    "ALLOW_REFRESH_TOKEN_AUTH",
+    "ALLOW_USER_PASSWORD_AUTH"
+  ]
 }
 
 # ── Admin assignments ──────────────────────────────────────────────────────────

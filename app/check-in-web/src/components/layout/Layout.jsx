@@ -2,6 +2,7 @@ import { useState } from 'react';
 import useAuth from '../../hooks/useAuth';
 import AuthModal from '../auth/AuthModal';
 import Button from '../common/Button';
+import GlobalError from '../common/GlobalError';
 
 const Layout = ({ children }) => {
   const { user, isAuthenticated, signOut, isAdmin } = useAuth();
@@ -43,6 +44,7 @@ const Layout = ({ children }) => {
       <main>{children}</main>
 
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
+      <GlobalError />
     </div>
   );
 };

@@ -1,13 +1,12 @@
-import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Button from '../components/common/Button';
-import Card from '../components/common/Card';
 
 /**
- * Join Us Page - Membership signup with Zeffy iframe
+ * Join Us Page - Membership signup
  * Converted from join-us.html
  */
 const JoinUs = () => {
-  const [showIframe, setShowIframe] = useState(false);
+  const navigate = useNavigate();
 
   const benefits = [
     {
@@ -51,10 +50,6 @@ const JoinUs = () => {
     'Private event rental opportunities'
   ];
 
-  const handleJoinClick = () => {
-    setShowIframe(true);
-  };
-
   return (
     <div className="min-h-screen bg-dark">
       {/* Hero Section */}
@@ -75,94 +70,70 @@ const JoinUs = () => {
       {/* Membership Details Section */}
       <section className="py-24 relative">
         <div className="container-custom">
-          {!showIframe ? (
-            <div className="flex flex-col lg:flex-row gap-16 items-stretch">
-              {/* Membership Card - Paper Style */}
-              <div className="lg:w-1/2 bg-neutral-paper p-12 shadow-[30px_30px_0px_0px_rgba(178,34,34,0.1)] border border-stone-200 relative overflow-hidden group">
-                <div className="absolute inset-0 opacity-5 pointer-events-none bg-grain" />
-                <div className="relative z-10">
-                  <div className="flex justify-between items-start mb-12 border-b border-stone-200 pb-8">
-                    <div>
-                      <h2 className="text-4xl font-display font-bold text-neutral-dark mb-2">
-                        Annual Associate
-                      </h2>
-                      <span className="text-stone-500 font-mono text-sm uppercase tracking-widest">Membership Tier</span>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-6xl font-display font-black text-primary">
-                        $20
-                      </div>
-                      <div className="text-stone-500 font-bold uppercase text-xs tracking-tighter">Per Calendar Year</div>
-                    </div>
+          <div className="flex flex-col lg:flex-row gap-16 items-stretch">
+            {/* Membership Card - Paper Style */}
+            <div className="lg:w-1/2 bg-neutral-paper p-12 shadow-[30px_30px_0px_0px_rgba(178,34,34,0.1)] border border-stone-200 relative overflow-hidden group">
+              <div className="absolute inset-0 opacity-5 pointer-events-none bg-grain" />
+              <div className="relative z-10">
+                <div className="flex justify-between items-start mb-12 border-b border-stone-200 pb-8">
+                  <div>
+                    <h2 className="text-4xl font-display font-bold text-neutral-dark mb-2">
+                      Annual Associate
+                    </h2>
+                    <span className="text-stone-500 font-mono text-sm uppercase tracking-widest">Membership Tier</span>
                   </div>
-                  
-                  <ul className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
-                    {membershipFeatures.map((feature, index) => (
-                      <li key={index} className="flex items-start text-stone-700 group/item">
-                        <span className="text-primary mr-3 text-lg font-bold leading-none">†</span>
-                        <span className="text-base font-medium leading-tight group-hover/item:text-primary transition-colors">{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-
-                  <div className="bg-white/50 p-6 border border-stone-200 rounded-sm">
-                    <p className="text-stone-600 italic text-sm text-center">
-                      "A membership at The Lantern Lounge is more than access to a bar; it's an investment in your local community."
-                    </p>
+                  <div className="text-right">
+                    <div className="text-6xl font-display font-black text-primary">
+                      $20
+                    </div>
+                    <div className="text-stone-500 font-bold uppercase text-xs tracking-tighter">Per Calendar Year</div>
                   </div>
                 </div>
-              </div>
+                
+                <ul className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+                  {membershipFeatures.map((feature, index) => (
+                    <li key={index} className="flex items-start text-stone-700 group/item">
+                      <span className="text-primary mr-3 text-lg font-bold leading-none">†</span>
+                      <span className="text-base font-medium leading-tight group-hover/item:text-primary transition-colors">{feature}</span>
+                    </li>
+                  ))}
+                </ul>
 
-              {/* Join Action Section */}
-              <div className="lg:w-1/2 flex flex-col justify-center">
-                <div className="max-w-md">
-                  <h3 className="text-4xl font-display font-bold text-white mb-6">
-                    Ready to <span className="text-accent-gold italic">unwind?</span>
-                  </h3>
-                  <p className="text-xl text-gray-400 mb-8 leading-relaxed">
-                    Simply walk in and apply for membership on the spot! Our staff is ready to welcome you into the fold.
+                <div className="bg-white/50 p-6 border border-stone-200 rounded-sm">
+                  <p className="text-stone-600 italic text-sm text-center">
+                    "A membership at The Lantern Lounge is more than access to a bar; it's an investment in your local community."
                   </p>
-                  <div className="space-y-6">
+                </div>
+              </div>
+            </div>
+
+            {/* Join Action Section */}
+            <div className="lg:w-1/2 flex flex-col justify-center">
+              <div className="max-w-md">
+                <h3 className="text-4xl font-display font-bold text-white mb-6">
+                  Ready to <span className="text-accent-gold italic">unwind?</span>
+                </h3>
+                <p className="text-xl text-gray-400 mb-8 leading-relaxed">
+                  Simply walk in and apply for membership on the spot! Our staff is ready to welcome you into the fold.
+                </p>
+                <div className="space-y-6">
+                  <div className="p-8 border border-white/10 bg-white/2 rounded-sm text-center">
+                    <p className="text-gray-400 mb-6">
+                      Membership applications are processed in person. Visit us today to fill out an application and receive your membership card.
+                    </p>
                     <Button
                       variant="cta"
                       fullWidth
-                      onClick={handleJoinClick}
+                      onClick={() => navigate('/help')}
                       className="!bg-primary !hover:bg-primary-hover shadow-2xl !py-6 !text-lg"
                     >
-                      Online Application
+                      Visit Us for Details
                     </Button>
-                    <p className="text-gray-500 text-sm text-center">
-                      Applications are processed securely via Zeffy. <br />
-                      No processing fees for our members.
-                    </p>
                   </div>
                 </div>
               </div>
             </div>
-          ) : (
-            /* Zeffy Iframe */
-            <div className="w-full max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-1000">
-              <div className="bg-white rounded-sm p-1 shadow-2xl overflow-hidden border border-white/10">
-                <iframe
-                  title="Donation form powered by Zeffy"
-                  style={{
-                    border: 0,
-                    width: '100%',
-                    height: '800px',
-                  }}
-                  src="https://www.zeffy.com/embed/ticketing/lexington-knights-of-columbus-members-association-memberships--2025"
-                  allowPaymentRequest
-                  allow="payment"
-                />
-              </div>
-              <button 
-                onClick={() => setShowIframe(false)}
-                className="mt-8 text-accent-gold hover:text-white transition-colors font-mono text-sm uppercase tracking-widest flex items-center gap-2"
-              >
-                ← Back to membership details
-              </button>
-            </div>
-          )}
+          </div>
         </div>
       </section>
 

@@ -9,7 +9,7 @@ const CONFIG = {
   cognito: {
     userPoolId: 'us-east-1_Xzm1CCwb3',
     userPoolRegion: 'us-east-1',
-    appClientId: '6n4p327ohinulk7g8g6nr66hgv',
+    appClientId: import.meta.env.VITE_COGNITO_CLIENT_ID ?? '2m20er041ns5iigp4c7m7tkht1',
     domain: 'lantern-lounge-calendar-production.auth.us-east-1.amazoncognito.com'
   },
 
@@ -20,8 +20,8 @@ const CONFIG = {
     updateItem: '/calendar/items',
     deleteItem: '/calendar/items',
     getPass: '/wallet/pass',
-    checkIn: '/checkin',
-    checkInScan: '/checkin/scan'
+    checkIn: '/checkins',
+    recordGuests: '/checkins/:id/guests'
   }
 };
 
