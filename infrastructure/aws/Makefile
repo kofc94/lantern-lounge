@@ -1,10 +1,13 @@
 .PHONY: build test deploy
 
+# ENV can be: global, dev, prod
+ENV ?= dev
+
 build:
-	tofu init -input=false
+	cd $(ENV) && tofu init -input=false
 
 test:
-	tofu plan -input=false
+	cd $(ENV) && tofu plan -input=false
 
 deploy:
-	tofu apply -input=false -auto-approve
+	cd $(ENV) && tofu apply -input=false -auto-approve

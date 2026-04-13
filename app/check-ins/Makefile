@@ -1,8 +1,11 @@
 .PHONY: build test deploy
 
+ENV ?= dev
+INFRA_DIR = infrastructure/$(ENV)
+
 # Initialize OpenTofu and install Lambda layer dependencies
 build:
-	tofu init -input=false
+	cd $(INFRA_DIR) && tofu init -input=false
 	mkdir -p .layer/python
 	pip install \
 	  --platform manylinux2014_x86_64 \
@@ -15,11 +18,11 @@ build:
 
 # Plan infrastructure changes
 test:
-	tofu plan -input=false
+	cd $(INFRA_DIR) && tofu plan -input=false
 
 # Apply infrastructure changes
 deploy:
-	tofu apply -input=false -auto-approve
+	cd $(INFRA_DIR) && tofu apply -input=false -auto-approve
 
 # Note: Run `make build` before `make test` or `make deploy` to ensure
 # the wallet Lambda layer dependencies are installed in .layer/python/.

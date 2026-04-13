@@ -5,9 +5,8 @@ variable "aws_region" {
 }
 
 variable "environment" {
-  description = "Environment name"
+  description = "Environment name (e.g., development, production)"
   type        = string
-  default     = "production"
 }
 
 variable "project_name" {
@@ -16,13 +15,22 @@ variable "project_name" {
   default     = "lantern-lounge"
 }
 
-variable "admin_email" {
-  description = "Email address for the SSO admin user (Eric LeDonne)"
+variable "domain_name" {
+  description = "Root domain name for the website"
   type        = string
-  default     = "eledonne@gmail.com"
+}
+
+variable "www_domain_name" {
+  description = "WWW subdomain for the website"
+  type        = string
 }
 
 variable "api_gateway_domain" {
   description = "Domain name of the API Gateway (without https://)"
+  type        = string
+}
+
+variable "checkin_domain_name" {
+  description = "Subdomain for the check-in web application"
   type        = string
 }

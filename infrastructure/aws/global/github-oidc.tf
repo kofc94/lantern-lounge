@@ -107,6 +107,12 @@ resource "aws_iam_role_policy" "github_actions_terraform" {
         Resource = "*"
       },
       {
+        Sid    = "AssumeRoleInChildAccounts"
+        Effect = "Allow"
+        Action = "sts:AssumeRole"
+        Resource = "arn:aws:iam::*:role/OrganizationAccountAccessRole"
+      },
+      {
         Sid    = "ServiceLinkedRoles"
         Effect = "Allow"
         Action = "iam:CreateServiceLinkedRole"
