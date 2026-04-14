@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import BarcodeScanner from 'react-qr-barcode-scanner';
 import useAuth from '../hooks/useAuth';
-import { checkInUser, checkInByScan } from '../services/api';
+import { checkInUser, recordGuests } from '../services/api';
+import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import clsx from 'clsx';
 
 const emptyGuest = () => ({ name: '', email: '' });
+const NON_MEMBER_VISIT_THRESHOLD = 3;
 
 const StepDots = ({ step }) => {
   const steps = ['checkin', 'guests', 'done'];
@@ -30,18 +32,17 @@ const StepDots = ({ step }) => {
 };
 
 const CheckIn = () => {
-  const { getToken, isStaff } = useAuth();
+  const { getToken, isStaff, setGlobalError } = useAuth();
   const [scanning, setScanning] = useState(true);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [email, setEmail] = useState('');
 
-  const [step, setStep] = useState('checkin'); // 'checkin' | 'guests' | 'done' | 'unregistered' | 'expired'
+  const [step, setStep] = useState('checkin'); // 'checkin' | 'guests' | 'done' | 'expired'
   const [guests, setGuests] = useState([emptyGuest()]);
   const [guestLoading, setGuestLoading] = useState(false);
   const [pendingCheckIn, setPendingCheckIn] = useState(null);
-  const [unregisteredMember, setUnregisteredMember] = useState(null);
   const [expiredMember, setExpiredMember] = useState(null);
 
   const handleUpdate = async (err, scanResult) => {
@@ -56,19 +57,8 @@ const CheckIn = () => {
       } else if (text.includes('@') && !text.includes('?')) {
         await processCheckIn({ email: text });
       } else {
-        let zeffyToken = null;
-        try {
-          const urlObj = new URL(text);
-          zeffyToken = urlObj.searchParams.get('token') || urlObj.searchParams.get('checkin') || text;
-          if (zeffyToken.includes('LL-CHECKIN:')) {
-            const emailPart = zeffyToken.replace('LL-CHECKIN:', '');
-            await processCheckIn({ email: emailPart });
-            return;
-          }
-        } catch {
-          zeffyToken = text;
-        }
-        await processCheckIn({ zeffyToken });
+        // Unknown format, maybe handle error later
+        setScanning(true);
       }
     }
   };
@@ -80,32 +70,37 @@ const CheckIn = () => {
     await processCheckIn({ email });
   };
 
-  const processCheckIn = async ({ email: emailAddr, zeffyToken }) => {
+  const processCheckIn = async ({ email: emailAddr }) => {
     setLoading(true);
     setError(null);
     try {
       const token = await getToken();
-      const data = emailAddr
-        ? await checkInUser(emailAddr, token, [])
-        : await checkInByScan(zeffyToken, token, []);
-      const firstName = data.user_name ? data.user_name.split(' ')[0] : null;
+      const data = await checkInUser(emailAddr, token);
+      
+      // Mobile haptic feedback on success
+      try { await Haptics.notification({ type: NotificationType.Success }); } catch { /* Ignore if not on native */ }
+
+      const firstName = data.userName ? data.userName.split(' ')[0] : null;
       setResult({
         success: true,
         message: firstName ? `Welcome ${firstName}!` : 'Guest Checked In!',
         details: data,
       });
-      setPendingCheckIn({ email: emailAddr, zeffyToken });
+      setPendingCheckIn({ email: emailAddr });
       setStep('guests');
     } catch (err) {
-      if (err.code === 'not_registered' && err.zeffyMember) {
-        setUnregisteredMember(err.zeffyMember);
-        setStep('unregistered');
-      } else if (err.code === 'membership_expired') {
+      // Mobile haptic feedback on error
+      try { await Haptics.notification({ type: NotificationType.Error }); } catch { /* Ignore */ }
+
+      if (err.status === 500) {
+        setGlobalError(err);
+      }
+      if (err.code === 'membership_expired') {
         setExpiredMember({ expiryDate: err.expiryDate });
         setStep('expired');
       } else {
         setError(err.message || 'Check-in failed');
-        setResult({ success: false });
+        setResult({ success: false, details: err.details });
         setStep('done');
       }
     } finally {
@@ -134,12 +129,13 @@ const CheckIn = () => {
     setGuestLoading(true);
     try {
       const token = await getToken();
-      const data = await (pendingCheckIn.email
-        ? checkInUser(pendingCheckIn.email, token, validGuests)
-        : checkInByScan(pendingCheckIn.zeffyToken, token, validGuests));
+      const data = await recordGuests(result.details.id, validGuests, token);
       
+      // Mobile haptic feedback on success
+      try { await Haptics.impact({ style: ImpactStyle.Heavy }); } catch { /* Ignore */ }
+
       // Check if any guest has reached the visit limit (3 visits max)
-      const warningGuests = data.guests?.filter(g => g.should_become_member) || [];
+      const warningGuests = data.guests?.filter(g => g.visitCount > NON_MEMBER_VISIT_THRESHOLD) || [];
       
       if (warningGuests.length > 0) {
         setResult({
@@ -153,6 +149,9 @@ const CheckIn = () => {
         resetScanner();
       }
     } catch (err) {
+      if (err.status === 500) {
+        setGlobalError(err);
+      }
       setError(err.message || 'Failed to submit guests');
       setStep('done');
     } finally {
@@ -170,7 +169,6 @@ const CheckIn = () => {
     setStep('checkin');
     setGuests([emptyGuest()]);
     setPendingCheckIn(null);
-    setUnregisteredMember(null);
     setExpiredMember(null);
   };
 
@@ -246,21 +244,23 @@ const CheckIn = () => {
                 </div>
               </div>
             ) : (
-              <div className="relative">
-                <div className="absolute top-3 right-3 z-10">
-                  <button
-                    onClick={() => setScanning(false)}
-                    aria-label="Switch to manual entry"
-                    className="bg-black/70 text-lantern-gold text-[10px] font-bold uppercase tracking-widest px-3 py-2 rounded-sm border border-lantern-gold/30 hover:bg-lantern-gold hover:text-black transition-all"
-                  >
-                    Manual Entry
-                  </button>
-                </div>
-                <BarcodeScanner width="100%" height="300px" onUpdate={handleUpdate} />
-                <div className="absolute inset-0 pointer-events-none border-2 border-lantern-gold/50 m-10 rounded-sm animate-pulse" />
-                <p className="text-center p-4 text-lantern-gold/70 font-mono text-xs uppercase tracking-widest">
-                  Scanning for Membership QR…
+              <div className="p-6">
+                <p className="text-center mb-4 text-lantern-gold font-mono text-xs uppercase tracking-widest">
+                  Please scan your Wallet Pass
                 </p>
+                
+                <div className="relative mb-6 rounded-sm overflow-hidden bg-black">
+                  <BarcodeScanner width="100%" height="300px" onUpdate={handleUpdate} />
+                  <div className="absolute inset-0 pointer-events-none border-2 border-lantern-gold/50 m-10 rounded-sm animate-pulse" />
+                </div>
+
+                <Button
+                  onClick={() => setScanning(false)}
+                  variant="gold"
+                  fullWidth
+                >
+                  Sign-in with email instead
+                </Button>
               </div>
             )}
           </>
@@ -281,10 +281,17 @@ const CheckIn = () => {
           <div className="p-8 text-center">
             <div className="text-red-500 text-5xl mb-4">✕</div>
             <h2 className="text-xl font-bold text-white mb-2">Error</h2>
-            <p className="text-red-400 text-sm mb-6">{error}</p>
-            <Button onClick={resetScanner} variant="secondary" fullWidth>
-              Try Again
-            </Button>
+            <p className="text-red-400 text-sm mb-2">{error}</p>
+            {result.details && (
+              <p className="text-gray-500 text-[10px] font-mono break-all mb-6">
+                {result.details}
+              </p>
+            )}
+            <div className={!result.details ? 'mt-4' : ''}>
+              <Button onClick={resetScanner} variant="secondary" fullWidth>
+                Try Again
+              </Button>
+            </div>
           </div>
         )}
 
@@ -303,7 +310,7 @@ const CheckIn = () => {
                   <p className="text-white text-sm font-bold truncate">{g.name}</p>
                   <p className="text-gray-500 text-xs truncate">{g.email}</p>
                   <p className="text-lantern-gold text-[10px] mt-1.5 font-bold uppercase tracking-widest">
-                    Visit #{g.visit_count} — Time to Join!
+                    Visit #{g.visitCount} — Time to Join!
                   </p>
                 </div>
               ))}
@@ -321,36 +328,6 @@ const CheckIn = () => {
             </Button>
           </div>
         )}
-
-        {/* ── Unregistered Zeffy member ── */}
-        {step === 'unregistered' && unregisteredMember && (() => {
-          const params = new URLSearchParams({
-            name: `${unregisteredMember.first_name} ${unregisteredMember.last_name}`.trim(),
-            email: unregisteredMember.email,
-          });
-          const registerUrl = `https://www.lanternlounge.org/register?${params}`;
-          return (
-            <div className="p-8 text-center">
-              <div className="text-lantern-gold text-4xl mb-3">!</div>
-              <h2 className="font-display text-xl font-bold text-white mb-1">
-                {unregisteredMember.first_name} {unregisteredMember.last_name}
-              </h2>
-              <p className="text-gray-500 text-xs uppercase tracking-widest mb-4">{unregisteredMember.email}</p>
-              <p className="text-gray-300 text-sm leading-relaxed mb-6">
-                Although you are a member of the Lantern Lounge, you also need to register on the lanternlounge.org website. Please scan the QR code to do this.
-              </p>
-              <div className="flex justify-center mb-3">
-                <div className="p-3 bg-white rounded-sm">
-                  <QRCodeSVG value={registerUrl} size={140} level="H" />
-                </div>
-              </div>
-              <p className="text-gray-600 text-xs uppercase tracking-widest mb-6">lanternlounge.org/register</p>
-              <Button onClick={resetScanner} variant="secondary" fullWidth>
-                Scan Next Guest
-              </Button>
-            </div>
-          );
-        })()}
 
         {/* ── Expired membership ── */}
         {step === 'expired' && expiredMember && (
@@ -385,8 +362,8 @@ const CheckIn = () => {
               <h2 className="text-xl font-bold text-white font-display">{result.message}</h2>
             </div>
 
-            {result.details?.expiry_date && (() => {
-              const expiry = new Date(result.details.expiry_date + 'T00:00:00');
+            {result.details?.expiryDate && (() => {
+              const expiry = new Date(result.details.expiryDate + 'T00:00:00');
               const daysLeft = Math.ceil((expiry - new Date()) / 86400000);
               return daysLeft <= 30 ? (
                 <div className="mb-6 p-3 rounded-sm border border-amber-500/40 bg-amber-500/10">

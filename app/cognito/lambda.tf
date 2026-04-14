@@ -6,6 +6,21 @@ data "archive_file" "user_management" {
   output_path = "${path.module}/user_management.zip"
 }
 
+# ── Dependencies Lambda Layer (Pydantic) ──────────────────────────────────────
+
+data "archive_file" "cognito_deps_layer" {
+  type        = "zip"
+  source_dir  = "${path.module}/.layer"
+  output_path = "${path.module}/cognito-deps-layer.zip"
+}
+
+resource "aws_lambda_layer_version" "cognito_deps" {
+  layer_name          = "${var.project_name}-cognito-deps"
+  filename            = data.archive_file.cognito_deps_layer.output_path
+  source_code_hash    = data.archive_file.cognito_deps_layer.output_base64sha256
+  compatible_runtimes = ["python3.11"]
+}
+
 data "archive_file" "post_confirmation" {
   type        = "zip"
   source_file = "${path.module}/auth/post_confirmation.py"
@@ -71,6 +86,7 @@ resource "aws_lambda_function" "post_confirmation" {
   source_code_hash = data.archive_file.post_confirmation.output_base64sha256
   runtime          = "python3.11"
   timeout          = 10
+  layers           = [aws_lambda_layer_version.cognito_deps.arn]
 
   environment {
     variables = {
@@ -95,6 +111,74 @@ resource "aws_lambda_permission" "cognito_post_confirmation" {
   function_name = aws_lambda_function.post_confirmation.function_name
   principal     = "cognito-idp.amazonaws.com"
   # Falls back to the resource ARN on first apply — same reasoning as the IAM policy above.
+  source_arn    = try(tolist(data.aws_cognito_user_pools.main.arns)[0], aws_cognito_user_pool.calendar_users.arn)
+}
+
+data "archive_file" "pre_authentication" {
+  type        = "zip"
+  source_file = "${path.module}/auth/pre_authentication.py"
+  output_path = "${path.module}/pre_authentication.zip"
+}
+
+# ── Pre-authentication Lambda (blocks non-staff from staff-app client) ───────
+
+resource "aws_iam_role" "pre_authentication_role" {
+  name = "${var.project_name}-pre-authentication-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "pre_authentication_basic" {
+  role       = aws_iam_role.pre_authentication_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+resource "aws_iam_role_policy" "pre_authentication_cognito" {
+  name = "${var.project_name}-pre-authentication-cognito"
+  role = aws_iam_role.pre_authentication_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = [
+        "cognito-idp:AdminListGroupsForUser",
+        "cognito-idp:ListUserPoolClients"
+      ]
+      Resource = try(tolist(data.aws_cognito_user_pools.main.arns)[0], aws_cognito_user_pool.calendar_users.arn)
+    }]
+  })
+}
+
+resource "aws_lambda_function" "pre_authentication" {
+  filename         = data.archive_file.pre_authentication.output_path
+  function_name    = "${var.project_name}-pre-authentication"
+  role             = aws_iam_role.pre_authentication_role.arn
+  handler          = "pre_authentication.handler"
+  source_code_hash = data.archive_file.pre_authentication.output_base64sha256
+  runtime          = "python3.11"
+  timeout          = 10
+  layers           = [aws_lambda_layer_version.cognito_deps.arn]
+
+  environment {
+    variables = {
+      USER_POOL_ID      = try(tolist(data.aws_cognito_user_pools.main.ids)[0], "")
+    }
+  }
+}
+
+resource "aws_lambda_permission" "cognito_pre_authentication" {
+  statement_id  = "AllowCognitoInvokePreAuth"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.pre_authentication.function_name
+  principal     = "cognito-idp.amazonaws.com"
   source_arn    = try(tolist(data.aws_cognito_user_pools.main.arns)[0], aws_cognito_user_pool.calendar_users.arn)
 }
 
@@ -151,6 +235,7 @@ resource "aws_lambda_function" "validate_user" {
   source_code_hash = data.archive_file.validate_user.output_base64sha256
   runtime          = "python3.11"
   timeout          = 10
+  layers           = [aws_lambda_layer_version.cognito_deps.arn]
 
   environment {
     variables = {
@@ -239,6 +324,7 @@ resource "aws_lambda_function" "user_management" {
   source_code_hash = data.archive_file.user_management.output_base64sha256
   runtime          = "python3.11"
   timeout          = 30
+  layers           = [aws_lambda_layer_version.cognito_deps.arn]
 
   environment {
     variables = {

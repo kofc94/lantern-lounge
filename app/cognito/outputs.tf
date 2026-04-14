@@ -13,6 +13,11 @@ output "cognito_user_pool_client_id" {
   value       = aws_cognito_user_pool_client.calendar_app.id
 }
 
+output "checkin_app_client_id" {
+  description = "Cognito App Client ID for the staff check-in app"
+  value       = aws_cognito_user_pool_client.checkin_app.id
+}
+
 output "cognito_domain" {
   description = "Cognito User Pool Domain"
   value       = aws_cognito_user_pool_domain.calendar_domain.domain
@@ -20,7 +25,7 @@ output "cognito_domain" {
 
 output "cognito_hosted_ui_url" {
   description = "Cognito Hosted UI URL for sign-in"
-  value       = "https://${aws_cognito_user_pool_domain.calendar_domain.domain}.auth.${var.aws_region}.amazoncognito.com/login?client_id=${aws_cognito_user_pool_client.calendar_app.id}&response_type=code&redirect_uri=https://${local.www_domain_name}/calendar.html"
+  value       = "https://${aws_cognito_user_pool_domain.calendar_domain.domain}.auth.${var.aws_region}.amazoncognito.com/login?client_id=${aws_cognito_user_pool_client.calendar_app.id}&response_type=code&redirect_uri=https://${var.www_domain_name}/calendar.html"
 }
 
 output "cognito_api_endpoint" {

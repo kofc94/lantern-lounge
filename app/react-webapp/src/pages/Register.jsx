@@ -131,7 +131,7 @@ const Register = () => {
                 placeholder="you@example.com"
                 required
                 autoFocus={!!prefillName && !prefillEmail}
-                helperText={prefillEmail ? 'Prefilled from your Zeffy membership record.' : ''}
+                helperText={''}
               />
               <FormGroup
                 label="Password"

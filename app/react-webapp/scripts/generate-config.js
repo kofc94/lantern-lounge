@@ -15,15 +15,18 @@ const __dirname = path.dirname(__filename);
 
 const ROOT = path.resolve(__dirname, '../../..');
 
+const ENV = process.argv[2] || 'prod';
+console.log(`Generating config for environment: ${ENV}`);
+
 function tfOutput(moduleDir, outputName) {
-  const cwd = path.join(ROOT, moduleDir);
+  const cwd = path.join(ROOT, moduleDir, 'infrastructure', ENV);
   try {
     return execSync(`tofu output -raw ${outputName}`, { cwd, stdio: ['pipe', 'pipe', 'pipe'] })
       .toString()
       .trim();
   } catch (e) {
-    console.error(`❌ Failed to read output "${outputName}" from ${moduleDir}`);
-    console.error(`   Make sure the module is deployed: cd ${moduleDir} && tofu apply`);
+    console.error(`❌ Failed to read output "${outputName}" from ${moduleDir}/infrastructure/${ENV}`);
+    console.error(`   Make sure the module is deployed: cd ${moduleDir}/infrastructure/${ENV} && tofu apply`);
     process.exit(1);
   }
 }

@@ -6,6 +6,21 @@ data "archive_file" "calendar_api" {
   output_path = "${path.module}/calendar-api.zip"
 }
 
+# ── Dependencies Lambda Layer (Pydantic + ULID) ───────────────────────────────
+
+data "archive_file" "calendar_deps_layer" {
+  type        = "zip"
+  source_dir  = "${path.module}/.layer"
+  output_path = "${path.module}/calendar-deps-layer.zip"
+}
+
+resource "aws_lambda_layer_version" "calendar_deps" {
+  layer_name          = "${var.project_name}-calendar-deps"
+  filename            = data.archive_file.calendar_deps_layer.output_path
+  source_code_hash    = data.archive_file.calendar_deps_layer.output_base64sha256
+  compatible_runtimes = ["python3.11"]
+}
+
 # ── IAM role for calendar Lambda functions ─────────────────────────────────────
 
 resource "aws_iam_role" "calendar_lambda_role" {
@@ -73,6 +88,7 @@ resource "aws_lambda_function" "get_calendar_items" {
   source_code_hash = data.archive_file.calendar_api.output_base64sha256
   runtime          = "python3.11"
   timeout          = 30
+  layers           = [aws_lambda_layer_version.calendar_deps.arn]
 
   environment {
     variables = {
@@ -96,6 +112,7 @@ resource "aws_lambda_function" "create_calendar_item" {
   source_code_hash = data.archive_file.calendar_api.output_base64sha256
   runtime          = "python3.11"
   timeout          = 30
+  layers           = [aws_lambda_layer_version.calendar_deps.arn]
 
   environment {
     variables = {
@@ -119,6 +136,7 @@ resource "aws_lambda_function" "update_calendar_item" {
   source_code_hash = data.archive_file.calendar_api.output_base64sha256
   runtime          = "python3.11"
   timeout          = 30
+  layers           = [aws_lambda_layer_version.calendar_deps.arn]
 
   environment {
     variables = {
@@ -142,6 +160,7 @@ resource "aws_lambda_function" "delete_calendar_item" {
   source_code_hash = data.archive_file.calendar_api.output_base64sha256
   runtime          = "python3.11"
   timeout          = 30
+  layers           = [aws_lambda_layer_version.calendar_deps.arn]
 
   environment {
     variables = {
@@ -162,7 +181,7 @@ resource "aws_lambda_permission" "api_gateway_get" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.get_calendar_items.function_name
   principal     = "apigateway.amazonaws.com"
-  source_arn    = "${aws_apigatewayv2_api.calendar_api.execution_arn}/*/*"
+  source_arn    = "${data.terraform_remote_state.infrastructure.outputs.api_gateway_execution_arn}/*/*"
 }
 
 resource "aws_lambda_permission" "api_gateway_create" {
@@ -170,7 +189,7 @@ resource "aws_lambda_permission" "api_gateway_create" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.create_calendar_item.function_name
   principal     = "apigateway.amazonaws.com"
-  source_arn    = "${aws_apigatewayv2_api.calendar_api.execution_arn}/*/*"
+  source_arn    = "${data.terraform_remote_state.infrastructure.outputs.api_gateway_execution_arn}/*/*"
 }
 
 resource "aws_lambda_permission" "api_gateway_update" {
@@ -178,7 +197,7 @@ resource "aws_lambda_permission" "api_gateway_update" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.update_calendar_item.function_name
   principal     = "apigateway.amazonaws.com"
-  source_arn    = "${aws_apigatewayv2_api.calendar_api.execution_arn}/*/*"
+  source_arn    = "${data.terraform_remote_state.infrastructure.outputs.api_gateway_execution_arn}/*/*"
 }
 
 resource "aws_lambda_permission" "api_gateway_delete" {
@@ -186,5 +205,5 @@ resource "aws_lambda_permission" "api_gateway_delete" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.delete_calendar_item.function_name
   principal     = "apigateway.amazonaws.com"
-  source_arn    = "${aws_apigatewayv2_api.calendar_api.execution_arn}/*/*"
+  source_arn    = "${data.terraform_remote_state.infrastructure.outputs.api_gateway_execution_arn}/*/*"
 }

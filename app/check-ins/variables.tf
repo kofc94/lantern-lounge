@@ -5,13 +5,17 @@ variable "aws_region" {
 }
 
 variable "environment" {
-  description = "Environment name"
+  description = "Environment name (e.g., dev, prod)"
   type        = string
-  default     = "production"
 }
 
 variable "project_name" {
   description = "Name of the project"
   type        = string
   default     = "lantern-lounge"
+}
+
+variable "domain_name" {
+  description = "Root domain name"
+  type        = string
 }

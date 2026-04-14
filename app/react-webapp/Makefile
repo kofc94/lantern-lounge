@@ -1,6 +1,7 @@
 .PHONY: build test deploy clean generate-config
 
-INFRA_DIR := ../../infrastructure/aws
+ENV ?= prod
+INFRA_DIR := ../../infrastructure/aws/$(ENV)
 
 # Get infrastructure outputs
 BUCKET_NAME = $(shell cd $(INFRA_DIR) && tofu output -raw website_bucket_name 2>/dev/null)
@@ -8,7 +9,7 @@ DISTRIBUTION_ID = $(shell cd $(INFRA_DIR) && tofu output -raw cloudfront_distrib
 WEBSITE_URL = $(shell cd $(INFRA_DIR) && (tofu output -raw final_website_url 2>/dev/null || tofu output -raw website_url 2>/dev/null || echo "N/A"))
 
 generate-config:
-	node scripts/generate-config.js
+	node scripts/generate-config.js $(ENV)
 
 build: generate-config
 	npm install
@@ -16,8 +17,9 @@ build: generate-config
 
 test:
 	npm run lint
+	npm run test
 
-deploy: build
+deploy: test build
 	@if [ -z "$(BUCKET_NAME)" ] || [ -z "$(DISTRIBUTION_ID)" ]; then \
 		echo "❌ Error: Could not get bucket name or distribution ID from OpenTofu"; \
 		echo "   Make sure infrastructure is deployed in $(INFRA_DIR)"; \
@@ -28,6 +30,7 @@ deploy: build
 		--delete \
 		--exclude ".DS_Store" \
 		--exclude "*.map" \
+		--exclude "checkin/*" \
 		--cache-control "public,max-age=31536000,immutable" \
 		--exclude "index.html"
 	aws s3 cp dist/index.html s3://$(BUCKET_NAME)/index.html \

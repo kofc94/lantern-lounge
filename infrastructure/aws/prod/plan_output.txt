@@ -1,0 +1,839 @@
+data.terraform_remote_state.global: Reading...
+data.terraform_remote_state.global: Read complete after 1s
+
+OpenTofu used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
+  + create
+
+OpenTofu will perform the following actions:
+
+  # module.website.aws_acm_certificate.checkin_certificate will be created
+  + resource "aws_acm_certificate" "checkin_certificate" {
+      + arn                       = (known after apply)
+      + domain_name               = "checkin.lanternlounge.org"
+      + domain_validation_options = [
+          + {
+              + domain_name           = "checkin.lanternlounge.org"
+              + resource_record_name  = (known after apply)
+              + resource_record_type  = (known after apply)
+              + resource_record_value = (known after apply)
+            },
+        ]
+      + id                        = (known after apply)
+      + key_algorithm             = (known after apply)
+      + not_after                 = (known after apply)
+      + not_before                = (known after apply)
+      + pending_renewal           = (known after apply)
+      + renewal_eligibility       = (known after apply)
+      + renewal_summary           = (known after apply)
+      + status                    = (known after apply)
+      + subject_alternative_names = [
+          + "checkin.lanternlounge.org",
+        ]
+      + tags_all                  = (known after apply)
+      + type                      = (known after apply)
+      + validation_emails         = (known after apply)
+      + validation_method         = "DNS"
+
+      + options (known after apply)
+    }
+
+  # module.website.aws_acm_certificate.ssl_certificate will be created
+  + resource "aws_acm_certificate" "ssl_certificate" {
+      + arn                       = (known after apply)
+      + domain_name               = "lanternlounge.org"
+      + domain_validation_options = [
+          + {
+              + domain_name           = "lanternlounge.org"
+              + resource_record_name  = (known after apply)
+              + resource_record_type  = (known after apply)
+              + resource_record_value = (known after apply)
+            },
+          + {
+              + domain_name           = "www.lanternlounge.org"
+              + resource_record_name  = (known after apply)
+              + resource_record_type  = (known after apply)
+              + resource_record_value = (known after apply)
+            },
+        ]
+      + id                        = (known after apply)
+      + key_algorithm             = (known after apply)
+      + not_after                 = (known after apply)
+      + not_before                = (known after apply)
+      + pending_renewal           = (known after apply)
+      + renewal_eligibility       = (known after apply)
+      + renewal_summary           = (known after apply)
+      + status                    = (known after apply)
+      + subject_alternative_names = [
+          + "lanternlounge.org",
+          + "www.lanternlounge.org",
+        ]
+      + tags_all                  = (known after apply)
+      + type                      = (known after apply)
+      + validation_emails         = (known after apply)
+      + validation_method         = "DNS"
+
+      + options (known after apply)
+    }
+
+  # module.website.aws_acm_certificate_validation.checkin_ssl_validation will be created
+  + resource "aws_acm_certificate_validation" "checkin_ssl_validation" {
+      + certificate_arn         = (known after apply)
+      + id                      = (known after apply)
+      + validation_record_fqdns = (known after apply)
+
+      + timeouts {
+          + create = "15m"
+        }
+    }
+
+  # module.website.aws_acm_certificate_validation.ssl_validation will be created
+  + resource "aws_acm_certificate_validation" "ssl_validation" {
+      + certificate_arn         = (known after apply)
+      + id                      = (known after apply)
+      + validation_record_fqdns = (known after apply)
+
+      + timeouts {
+          + create = "15m"
+        }
+    }
+
+  # module.website.aws_apigatewayv2_api.main will be created
+  + resource "aws_apigatewayv2_api" "main" {
+      + api_endpoint                 = (known after apply)
+      + api_key_selection_expression = "$request.header.x-api-key"
+      + arn                          = (known after apply)
+      + description                  = "Main API for lantern-lounge (production)"
+      + execution_arn                = (known after apply)
+      + id                           = (known after apply)
+      + ip_address_type              = (known after apply)
+      + name                         = "lantern-lounge-api-production"
+      + protocol_type                = "HTTP"
+      + route_selection_expression   = "$request.method $request.path"
+      + tags                         = {
+          + "Environment" = "production"
+          + "Name"        = "lantern-lounge API"
+          + "Project"     = "lantern-lounge"
+        }
+      + tags_all                     = {
+          + "Environment" = "production"
+          + "Name"        = "lantern-lounge API"
+          + "Project"     = "lantern-lounge"
+        }
+
+      + cors_configuration {
+          + allow_headers = [
+              + "Authorization",
+              + "Content-Type",
+              + "X-Amz-Date",
+              + "X-Amz-Security-Token",
+              + "X-Api-Key",
+            ]
+          + allow_methods = [
+              + "DELETE",
+              + "GET",
+              + "OPTIONS",
+              + "POST",
+              + "PUT",
+            ]
+          + allow_origins = [
+              + "http://localhost:8080",
+              + "https://lanternlounge.org",
+              + "https://www.lanternlounge.org",
+            ]
+          + max_age       = 300
+        }
+    }
+
+  # module.website.aws_apigatewayv2_stage.default will be created
+  + resource "aws_apigatewayv2_stage" "default" {
+      + api_id        = (known after apply)
+      + arn           = (known after apply)
+      + auto_deploy   = true
+      + deployment_id = (known after apply)
+      + execution_arn = (known after apply)
+      + id            = (known after apply)
+      + invoke_url    = (known after apply)
+      + name          = "$default"
+      + tags          = {
+          + "Environment" = "production"
+          + "Name"        = "Default Stage"
+          + "Project"     = "lantern-lounge"
+        }
+      + tags_all      = {
+          + "Environment" = "production"
+          + "Name"        = "Default Stage"
+          + "Project"     = "lantern-lounge"
+        }
+
+      + access_log_settings {
+          + destination_arn = (known after apply)
+          + format          = jsonencode(
+                {
+                  + authError      = "$context.authorizer.error"
+                  + errorMessage   = "$context.error.message"
+                  + httpMethod     = "$context.httpMethod"
+                  + ip             = "$context.identity.sourceIp"
+                  + protocol       = "$context.protocol"
+                  + requestId      = "$context.requestId"
+                  + requestTime    = "$context.requestTime"
+                  + responseLength = "$context.responseLength"
+                  + routeKey       = "$context.routeKey"
+                  + status         = "$context.status"
+                }
+            )
+        }
+    }
+
+  # module.website.aws_ce_cost_allocation_tag.environment will be created
+  + resource "aws_ce_cost_allocation_tag" "environment" {
+      + id      = (known after apply)
+      + status  = "Active"
+      + tag_key = "Environment"
+      + type    = (known after apply)
+    }
+
+  # module.website.aws_ce_cost_allocation_tag.project will be created
+  + resource "aws_ce_cost_allocation_tag" "project" {
+      + id      = (known after apply)
+      + status  = "Active"
+      + tag_key = "Project"
+      + type    = (known after apply)
+    }
+
+  # module.website.aws_cloudfront_distribution.checkin_distribution will be created
+  + resource "aws_cloudfront_distribution" "checkin_distribution" {
+      + aliases                         = [
+          + "checkin.lanternlounge.org",
+        ]
+      + arn                             = (known after apply)
+      + caller_reference                = (known after apply)
+      + continuous_deployment_policy_id = (known after apply)
+      + default_root_object             = "index.html"
+      + domain_name                     = (known after apply)
+      + enabled                         = true
+      + etag                            = (known after apply)
+      + hosted_zone_id                  = (known after apply)
+      + http_version                    = "http2"
+      + id                              = (known after apply)
+      + in_progress_validation_batches  = (known after apply)
+      + is_ipv6_enabled                 = true
+      + last_modified_time              = (known after apply)
+      + price_class                     = "PriceClass_100"
+      + retain_on_delete                = false
+      + staging                         = false
+      + status                          = (known after apply)
+      + tags                            = {
+          + "Environment" = "production"
+          + "Name"        = "lantern-lounge Check-in Web"
+        }
+      + tags_all                        = {
+          + "Environment" = "production"
+          + "Name"        = "lantern-lounge Check-in Web"
+        }
+      + trusted_key_groups              = (known after apply)
+      + trusted_signers                 = (known after apply)
+      + wait_for_deployment             = true
+
+      + custom_error_response {
+          + error_code         = 403
+          + response_code      = 200
+          + response_page_path = "/index.html"
+        }
+      + custom_error_response {
+          + error_code         = 404
+          + response_code      = 200
+          + response_page_path = "/index.html"
+        }
+
+      + default_cache_behavior {
+          + allowed_methods        = [
+              + "GET",
+              + "HEAD",
+              + "OPTIONS",
+            ]
+          + cached_methods         = [
+              + "GET",
+              + "HEAD",
+            ]
+          + compress               = true
+          + default_ttl            = 3600
+          + max_ttl                = 86400
+          + min_ttl                = 0
+          + target_origin_id       = "S3-website"
+          + trusted_key_groups     = (known after apply)
+          + trusted_signers        = (known after apply)
+          + viewer_protocol_policy = "redirect-to-https"
+
+          + forwarded_values {
+              + headers                 = (known after apply)
+              + query_string            = false
+              + query_string_cache_keys = (known after apply)
+
+              + cookies {
+                  + forward           = "none"
+                  + whitelisted_names = (known after apply)
+                }
+            }
+
+          + grpc_config (known after apply)
+        }
+
+      + origin {
+          + connection_attempts      = 3
+          + connection_timeout       = 10
+          + domain_name              = (known after apply)
+          + origin_access_control_id = (known after apply)
+          + origin_id                = "S3-website"
+          + origin_path              = "/checkin"
+        }
+
+      + restrictions {
+          + geo_restriction {
+              + locations        = (known after apply)
+              + restriction_type = "none"
+            }
+        }
+
+      + viewer_certificate {
+          + acm_certificate_arn      = (known after apply)
+          + minimum_protocol_version = "TLSv1.2_2021"
+          + ssl_support_method       = "sni-only"
+        }
+    }
+
+  # module.website.aws_cloudfront_distribution.redirect_distribution will be created
+  + resource "aws_cloudfront_distribution" "redirect_distribution" {
+      + aliases                         = [
+          + "lanternlounge.org",
+        ]
+      + arn                             = (known after apply)
+      + caller_reference                = (known after apply)
+      + continuous_deployment_policy_id = (known after apply)
+      + domain_name                     = (known after apply)
+      + enabled                         = true
+      + etag                            = (known after apply)
+      + hosted_zone_id                  = (known after apply)
+      + http_version                    = "http2"
+      + id                              = (known after apply)
+      + in_progress_validation_batches  = (known after apply)
+      + is_ipv6_enabled                 = true
+      + last_modified_time              = (known after apply)
+      + price_class                     = "PriceClass_100"
+      + retain_on_delete                = false
+      + staging                         = false
+      + status                          = (known after apply)
+      + tags                            = {
+          + "Environment" = "production"
+          + "Name"        = "lantern-lounge Redirect"
+        }
+      + tags_all                        = {
+          + "Environment" = "production"
+          + "Name"        = "lantern-lounge Redirect"
+        }
+      + trusted_key_groups              = (known after apply)
+      + trusted_signers                 = (known after apply)
+      + wait_for_deployment             = true
+
+      + default_cache_behavior {
+          + allowed_methods        = [
+              + "GET",
+              + "HEAD",
+            ]
+          + cached_methods         = [
+              + "GET",
+              + "HEAD",
+            ]
+          + compress               = false
+          + default_ttl            = 300
+          + max_ttl                = 1200
+          + min_ttl                = 0
+          + target_origin_id       = "S3-redirect"
+          + trusted_key_groups     = (known after apply)
+          + trusted_signers        = (known after apply)
+          + viewer_protocol_policy = "redirect-to-https"
+
+          + forwarded_values {
+              + headers                 = (known after apply)
+              + query_string            = false
+              + query_string_cache_keys = (known after apply)
+
+              + cookies {
+                  + forward           = "none"
+                  + whitelisted_names = (known after apply)
+                }
+            }
+
+          + function_association {
+              + event_type   = "viewer-request"
+              + function_arn = (known after apply)
+            }
+
+          + grpc_config (known after apply)
+        }
+
+      + origin {
+          + connection_attempts      = 3
+          + connection_timeout       = 10
+          + domain_name              = (known after apply)
+          + origin_access_control_id = (known after apply)
+          + origin_id                = "S3-redirect"
+        }
+
+      + restrictions {
+          + geo_restriction {
+              + locations        = (known after apply)
+              + restriction_type = "none"
+            }
+        }
+
+      + viewer_certificate {
+          + acm_certificate_arn      = (known after apply)
+          + minimum_protocol_version = "TLSv1.2_2021"
+          + ssl_support_method       = "sni-only"
+        }
+    }
+
+  # module.website.aws_cloudfront_distribution.website_distribution will be created
+  + resource "aws_cloudfront_distribution" "website_distribution" {
+      + aliases                         = [
+          + "www.lanternlounge.org",
+        ]
+      + arn                             = (known after apply)
+      + caller_reference                = (known after apply)
+      + continuous_deployment_policy_id = (known after apply)
+      + default_root_object             = "index.html"
+      + domain_name                     = (known after apply)
+      + enabled                         = true
+      + etag                            = (known after apply)
+      + hosted_zone_id                  = (known after apply)
+      + http_version                    = "http2"
+      + id                              = (known after apply)
+      + in_progress_validation_batches  = (known after apply)
+      + is_ipv6_enabled                 = true
+      + last_modified_time              = (known after apply)
+      + price_class                     = "PriceClass_100"
+      + retain_on_delete                = false
+      + staging                         = false
+      + status                          = (known after apply)
+      + tags                            = {
+          + "Environment" = "production"
+          + "Name"        = "lantern-lounge Website"
+        }
+      + tags_all                        = {
+          + "Environment" = "production"
+          + "Name"        = "lantern-lounge Website"
+        }
+      + trusted_key_groups              = (known after apply)
+      + trusted_signers                 = (known after apply)
+      + wait_for_deployment             = true
+
+      + default_cache_behavior {
+          + allowed_methods        = [
+              + "DELETE",
+              + "GET",
+              + "HEAD",
+              + "OPTIONS",
+              + "PATCH",
+              + "POST",
+              + "PUT",
+            ]
+          + cached_methods         = [
+              + "GET",
+              + "HEAD",
+            ]
+          + compress               = true
+          + default_ttl            = 3600
+          + max_ttl                = 86400
+          + min_ttl                = 0
+          + target_origin_id       = "S3-website"
+          + trusted_key_groups     = (known after apply)
+          + trusted_signers        = (known after apply)
+          + viewer_protocol_policy = "redirect-to-https"
+
+          + forwarded_values {
+              + headers                 = (known after apply)
+              + query_string            = false
+              + query_string_cache_keys = (known after apply)
+
+              + cookies {
+                  + forward           = "none"
+                  + whitelisted_names = (known after apply)
+                }
+            }
+
+          + grpc_config (known after apply)
+        }
+
+      + origin {
+          + connection_attempts = 3
+          + connection_timeout  = 10
+          + domain_name         = (known after apply)
+          + origin_id           = "APIGateway"
+
+          + custom_origin_config {
+              + http_port                = 80
+              + https_port               = 443
+              + origin_keepalive_timeout = 5
+              + origin_protocol_policy   = "https-only"
+              + origin_read_timeout      = 30
+              + origin_ssl_protocols     = [
+                  + "TLSv1.2",
+                ]
+            }
+        }
+      + origin {
+          + connection_attempts      = 3
+          + connection_timeout       = 10
+          + domain_name              = (known after apply)
+          + origin_access_control_id = (known after apply)
+          + origin_id                = "S3-website"
+        }
+
+      + restrictions {
+          + geo_restriction {
+              + locations        = (known after apply)
+              + restriction_type = "none"
+            }
+        }
+
+      + viewer_certificate {
+          + acm_certificate_arn      = (known after apply)
+          + minimum_protocol_version = "TLSv1.2_2021"
+          + ssl_support_method       = "sni-only"
+        }
+    }
+
+  # module.website.aws_cloudfront_function.redirect_to_www will be created
+  + resource "aws_cloudfront_function" "redirect_to_www" {
+      + arn             = (known after apply)
+      + code            = <<-EOT
+            function handler(event) {
+              var request = event.request;
+              var keys = Object.keys(request.querystring);
+              var qs = keys.length > 0
+                ? '?' + keys.map(function(k) {
+                    var v = request.querystring[k];
+                    return encodeURIComponent(k) + '=' + encodeURIComponent(v.value);
+                  }).join('&')
+                : '';
+              return {
+                statusCode: 301,
+                statusDescription: 'Moved Permanently',
+                headers: { location: { value: 'https://www.lanternlounge.org' + request.uri + qs } }
+              };
+            }
+        EOT
+      + etag            = (known after apply)
+      + id              = (known after apply)
+      + live_stage_etag = (known after apply)
+      + name            = "lantern-lounge-redirect-to-www-production"
+      + publish         = true
+      + runtime         = "cloudfront-js-2.0"
+      + status          = (known after apply)
+    }
+
+  # module.website.aws_cloudfront_origin_access_control.s3_oac will be created
+  + resource "aws_cloudfront_origin_access_control" "s3_oac" {
+      + arn                               = (known after apply)
+      + description                       = "OAC for S3 buckets"
+      + etag                              = (known after apply)
+      + id                                = (known after apply)
+      + name                              = "s3-oac-lanternlounge.org-production"
+      + origin_access_control_origin_type = "s3"
+      + signing_behavior                  = "always"
+      + signing_protocol                  = "sigv4"
+    }
+
+  # module.website.aws_cloudwatch_log_group.api_gateway_logs will be created
+  + resource "aws_cloudwatch_log_group" "api_gateway_logs" {
+      + arn               = (known after apply)
+      + id                = (known after apply)
+      + log_group_class   = (known after apply)
+      + name              = "/aws/apigateway/lantern-lounge-api-production"
+      + name_prefix       = (known after apply)
+      + retention_in_days = 7
+      + skip_destroy      = false
+      + tags              = {
+          + "Environment" = "production"
+          + "Name"        = "API Gateway Logs"
+          + "Project"     = "lantern-lounge"
+        }
+      + tags_all          = {
+          + "Environment" = "production"
+          + "Name"        = "API Gateway Logs"
+          + "Project"     = "lantern-lounge"
+        }
+    }
+
+  # module.website.aws_route53_record.checkin will be created
+  + resource "aws_route53_record" "checkin" {
+      + allow_overwrite = (known after apply)
+      + fqdn            = (known after apply)
+      + id              = (known after apply)
+      + name            = "checkin.lanternlounge.org"
+      + type            = "A"
+      + zone_id         = "Z06321901A5NMQ9WCA76Y"
+
+      + alias {
+          + evaluate_target_health = false
+          + name                   = (known after apply)
+          + zone_id                = (known after apply)
+        }
+    }
+
+  # module.website.aws_route53_record.checkin_ipv6 will be created
+  + resource "aws_route53_record" "checkin_ipv6" {
+      + allow_overwrite = (known after apply)
+      + fqdn            = (known after apply)
+      + id              = (known after apply)
+      + name            = "checkin.lanternlounge.org"
+      + type            = "AAAA"
+      + zone_id         = "Z06321901A5NMQ9WCA76Y"
+
+      + alias {
+          + evaluate_target_health = false
+          + name                   = (known after apply)
+          + zone_id                = (known after apply)
+        }
+    }
+
+  # module.website.aws_route53_record.checkin_ssl_validation["checkin.lanternlounge.org"] will be created
+  + resource "aws_route53_record" "checkin_ssl_validation" {
+      + allow_overwrite = true
+      + fqdn            = (known after apply)
+      + id              = (known after apply)
+      + name            = (known after apply)
+      + records         = (known after apply)
+      + ttl             = 60
+      + type            = (known after apply)
+      + zone_id         = "Z06321901A5NMQ9WCA76Y"
+    }
+
+  # module.website.aws_route53_record.root will be created
+  + resource "aws_route53_record" "root" {
+      + allow_overwrite = (known after apply)
+      + fqdn            = (known after apply)
+      + id              = (known after apply)
+      + name            = "lanternlounge.org"
+      + type            = "A"
+      + zone_id         = "Z06321901A5NMQ9WCA76Y"
+
+      + alias {
+          + evaluate_target_health = false
+          + name                   = (known after apply)
+          + zone_id                = (known after apply)
+        }
+    }
+
+  # module.website.aws_route53_record.root_ipv6 will be created
+  + resource "aws_route53_record" "root_ipv6" {
+      + allow_overwrite = (known after apply)
+      + fqdn            = (known after apply)
+      + id              = (known after apply)
+      + name            = "lanternlounge.org"
+      + type            = "AAAA"
+      + zone_id         = "Z06321901A5NMQ9WCA76Y"
+
+      + alias {
+          + evaluate_target_health = false
+          + name                   = (known after apply)
+          + zone_id                = (known after apply)
+        }
+    }
+
+  # module.website.aws_route53_record.ssl_validation["lanternlounge.org"] will be created
+  + resource "aws_route53_record" "ssl_validation" {
+      + allow_overwrite = true
+      + fqdn            = (known after apply)
+      + id              = (known after apply)
+      + name            = (known after apply)
+      + records         = (known after apply)
+      + ttl             = 60
+      + type            = (known after apply)
+      + zone_id         = "Z06321901A5NMQ9WCA76Y"
+    }
+
+  # module.website.aws_route53_record.ssl_validation["www.lanternlounge.org"] will be created
+  + resource "aws_route53_record" "ssl_validation" {
+      + allow_overwrite = true
+      + fqdn            = (known after apply)
+      + id              = (known after apply)
+      + name            = (known after apply)
+      + records         = (known after apply)
+      + ttl             = 60
+      + type            = (known after apply)
+      + zone_id         = "Z06321901A5NMQ9WCA76Y"
+    }
+
+  # module.website.aws_route53_record.www will be created
+  + resource "aws_route53_record" "www" {
+      + allow_overwrite = (known after apply)
+      + fqdn            = (known after apply)
+      + id              = (known after apply)
+      + name            = "www.lanternlounge.org"
+      + type            = "A"
+      + zone_id         = "Z06321901A5NMQ9WCA76Y"
+
+      + alias {
+          + evaluate_target_health = false
+          + name                   = (known after apply)
+          + zone_id                = (known after apply)
+        }
+    }
+
+  # module.website.aws_route53_record.www_ipv6 will be created
+  + resource "aws_route53_record" "www_ipv6" {
+      + allow_overwrite = (known after apply)
+      + fqdn            = (known after apply)
+      + id              = (known after apply)
+      + name            = "www.lanternlounge.org"
+      + type            = "AAAA"
+      + zone_id         = "Z06321901A5NMQ9WCA76Y"
+
+      + alias {
+          + evaluate_target_health = false
+          + name                   = (known after apply)
+          + zone_id                = (known after apply)
+        }
+    }
+
+  # module.website.aws_s3_bucket.redirect will be created
+  + resource "aws_s3_bucket" "redirect" {
+      + acceleration_status         = (known after apply)
+      + acl                         = (known after apply)
+      + arn                         = (known after apply)
+      + bucket                      = "lanternlounge.org"
+      + bucket_domain_name          = (known after apply)
+      + bucket_prefix               = (known after apply)
+      + bucket_regional_domain_name = (known after apply)
+      + force_destroy               = false
+      + hosted_zone_id              = (known after apply)
+      + id                          = (known after apply)
+      + object_lock_enabled         = (known after apply)
+      + policy                      = (known after apply)
+      + region                      = (known after apply)
+      + request_payer               = (known after apply)
+      + tags_all                    = (known after apply)
+      + website_domain              = (known after apply)
+      + website_endpoint            = (known after apply)
+
+      + cors_rule (known after apply)
+
+      + grant (known after apply)
+
+      + lifecycle_rule (known after apply)
+
+      + logging (known after apply)
+
+      + object_lock_configuration (known after apply)
+
+      + replication_configuration (known after apply)
+
+      + server_side_encryption_configuration (known after apply)
+
+      + versioning (known after apply)
+
+      + website (known after apply)
+    }
+
+  # module.website.aws_s3_bucket.website will be created
+  + resource "aws_s3_bucket" "website" {
+      + acceleration_status         = (known after apply)
+      + acl                         = (known after apply)
+      + arn                         = (known after apply)
+      + bucket                      = "www.lanternlounge.org"
+      + bucket_domain_name          = (known after apply)
+      + bucket_prefix               = (known after apply)
+      + bucket_regional_domain_name = (known after apply)
+      + force_destroy               = false
+      + hosted_zone_id              = (known after apply)
+      + id                          = (known after apply)
+      + object_lock_enabled         = (known after apply)
+      + policy                      = (known after apply)
+      + region                      = (known after apply)
+      + request_payer               = (known after apply)
+      + tags_all                    = (known after apply)
+      + website_domain              = (known after apply)
+      + website_endpoint            = (known after apply)
+
+      + cors_rule (known after apply)
+
+      + grant (known after apply)
+
+      + lifecycle_rule (known after apply)
+
+      + logging (known after apply)
+
+      + object_lock_configuration (known after apply)
+
+      + replication_configuration (known after apply)
+
+      + server_side_encryption_configuration (known after apply)
+
+      + versioning (known after apply)
+
+      + website (known after apply)
+    }
+
+  # module.website.aws_s3_bucket_public_access_block.redirect will be created
+  + resource "aws_s3_bucket_public_access_block" "redirect" {
+      + block_public_acls       = true
+      + block_public_policy     = true
+      + bucket                  = (known after apply)
+      + id                      = (known after apply)
+      + ignore_public_acls      = true
+      + restrict_public_buckets = true
+    }
+
+  # module.website.aws_s3_bucket_public_access_block.website will be created
+  + resource "aws_s3_bucket_public_access_block" "website" {
+      + block_public_acls       = true
+      + block_public_policy     = true
+      + bucket                  = (known after apply)
+      + id                      = (known after apply)
+      + ignore_public_acls      = true
+      + restrict_public_buckets = true
+    }
+
+  # module.website.aws_s3_bucket_website_configuration.redirect will be created
+  + resource "aws_s3_bucket_website_configuration" "redirect" {
+      + bucket           = (known after apply)
+      + id               = (known after apply)
+      + routing_rules    = (known after apply)
+      + website_domain   = (known after apply)
+      + website_endpoint = (known after apply)
+
+      + redirect_all_requests_to {
+          + host_name = "www.lanternlounge.org"
+          + protocol  = "https"
+        }
+
+      + routing_rule (known after apply)
+    }
+
+  # module.website.aws_s3_bucket_website_configuration.website will be created
+  + resource "aws_s3_bucket_website_configuration" "website" {
+      + bucket           = (known after apply)
+      + id               = (known after apply)
+      + routing_rules    = (known after apply)
+      + website_domain   = (known after apply)
+      + website_endpoint = (known after apply)
+
+      + error_document {
+          + key = "index.html"
+        }
+
+      + index_document {
+          + suffix = "index.html"
+        }
+
+      + routing_rule (known after apply)
+    }
+
+Plan: 29 to add, 0 to change, 0 to destroy.
+
+─────────────────────────────────────────────────────────────────────────────
+
+Note: You didn't use the -out option to save this plan, so OpenTofu can't
+guarantee to take exactly these actions if you run "tofu apply" now.

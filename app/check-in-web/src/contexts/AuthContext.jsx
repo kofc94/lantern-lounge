@@ -8,10 +8,22 @@ export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [globalError, setGlobalError] = useState(null);
 
   const loadUser = async () => {
     try {
       const user = await cognitoService.getCurrentUser();
+      if (user) {
+        const groups = user.groups || [];
+        const isStaff = groups.includes('staff') || groups.includes('admin');
+        if (!isStaff) {
+          console.warn('Unauthorized access attempt by non-staff user:', user.email);
+          await cognitoService.signOut();
+          setError('Access Denied: You do not have staff permissions.');
+          setCurrentUser(null);
+          return;
+        }
+      }
       setCurrentUser(user);
     } catch (err) {
       console.error('Failed to load user:', err);
@@ -112,6 +124,8 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated: !!currentUser,
     isLoading,
     error,
+    globalError,
+    setGlobalError,
     signIn,
     signUp,
     confirmEmail,

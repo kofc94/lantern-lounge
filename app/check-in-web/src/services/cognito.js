@@ -12,6 +12,17 @@ import {
 } from '@aws-amplify/auth';
 import CONFIG from '../config/aws-config';
 
+import { Capacitor } from '@capacitor/core';
+
+const isNative = Capacitor.isNativePlatform();
+const redirectUri = isNative 
+  ? 'org.lanternlounge.checkin://callback' 
+  : `${window.location.origin}/`;
+
+const logoutUri = isNative 
+  ? 'org.lanternlounge.checkin://logout' 
+  : `${window.location.origin}/`;
+
 Amplify.configure({
   Auth: {
     Cognito: {
@@ -20,9 +31,9 @@ Amplify.configure({
       loginWith: {
         oauth: {
           domain: CONFIG.cognito.domain,
-          scopes: ['openid', 'email', 'profile'],
-          redirectSignIn: [`${window.location.origin}/`],
-          redirectSignOut: [`${window.location.origin}/`],
+          scopes: ['openid', 'email', 'profile', 'aws.cognito.signin.user.admin'],
+          redirectSignIn: [redirectUri],
+          redirectSignOut: [logoutUri],
           responseType: 'code',
         },
       },

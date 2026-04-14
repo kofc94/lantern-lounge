@@ -15,7 +15,7 @@ const dateFrom = (days) => {
 const items = [
   {
     id: '1',
-    timestamp: Date.now(),
+    timestamp: new Date().toISOString(),
     title: 'Monthly Members Meeting',
     description: 'Monthly meeting for all members. Agenda: club finances, upcoming events, open forum.',
     date: dateFrom(5),
@@ -24,12 +24,12 @@ const items = [
     isPublic: 1,
     createdBy: 'admin@lanternlounge.org',
     createdByUserId: 'admin',
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   },
   {
     id: '2',
-    timestamp: Date.now(),
+    timestamp: new Date().toISOString(),
     title: 'Pool Tournament',
     description: 'Single elimination pool tournament. Sign up at the bar.',
     date: dateFrom(8),
@@ -38,12 +38,12 @@ const items = [
     isPublic: 1,
     createdBy: 'admin@lanternlounge.org',
     createdByUserId: 'admin',
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   },
   {
     id: '3',
-    timestamp: Date.now(),
+    timestamp: new Date().toISOString(),
     title: 'Friday Happy Hour',
     description: 'Members-only happy hour. Half-price drinks 5–7pm.',
     date: dateFrom(12),
@@ -52,12 +52,12 @@ const items = [
     isPublic: 0,
     createdBy: 'admin@lanternlounge.org',
     createdByUserId: 'admin',
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   },
   {
     id: '4',
-    timestamp: Date.now(),
+    timestamp: new Date().toISOString(),
     title: 'Trivia Night',
     description: 'Weekly trivia night hosted by Mike. Teams of up to 6.',
     date: dateFrom(14),
@@ -66,12 +66,12 @@ const items = [
     isPublic: 1,
     createdBy: 'admin@lanternlounge.org',
     createdByUserId: 'admin',
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   },
   {
     id: '5',
-    timestamp: Date.now(),
+    timestamp: new Date().toISOString(),
     title: 'Board Meeting',
     description: 'Quarterly board meeting. Members welcome to observe.',
     date: dateFrom(18),
@@ -80,12 +80,12 @@ const items = [
     isPublic: 0,
     createdBy: 'admin@lanternlounge.org',
     createdByUserId: 'admin',
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   },
   {
     id: '6',
-    timestamp: Date.now(),
+    timestamp: new Date().toISOString(),
     title: 'St. Patrick\'s Day Party',
     description: 'Annual St. Patrick\'s Day celebration. Live music, Irish food, and green beer.',
     date: dateFrom(22),
@@ -94,8 +94,8 @@ const items = [
     isPublic: 1,
     createdBy: 'admin@lanternlounge.org',
     createdByUserId: 'admin',
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   },
 ];
 
@@ -119,13 +119,13 @@ app.post('/calendar/items', (req, res) => {
   }
   const item = {
     id: randomUUID(),
-    timestamp: Date.now(),
+    timestamp: new Date().toISOString(),
     ...req.body,
     isPublic: req.body.isPublic ? 1 : 0,
     createdBy: 'dev@local',
     createdByUserId: 'local-dev',
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   };
   items.push(item);
   res.status(201).json({ message: 'Calendar item created successfully', item });
@@ -135,7 +135,7 @@ app.post('/calendar/items', (req, res) => {
 app.put('/calendar/items/:id', (req, res) => {
   const idx = items.findIndex(i => i.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'Not found' });
-  items[idx] = { ...items[idx], ...req.body, updatedAt: Date.now() };
+  items[idx] = { ...items[idx], ...req.body, updatedAt: new Date().toISOString() };
   res.json({ message: 'Calendar item updated successfully', item: items[idx] });
 });
 

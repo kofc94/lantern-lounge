@@ -32,8 +32,11 @@ resource "aws_apigatewayv2_authorizer" "cognito" {
   name             = "cognito-authorizer"
 
   jwt_configuration {
-    audience = [data.terraform_remote_state.cognito.outputs.cognito_user_pool_client_id]
-    issuer   = "https://cognito-idp.${var.aws_region}.amazonaws.com/${data.terraform_remote_state.cognito.outputs.cognito_user_pool_id}"
+    audience = [
+      data.terraform_remote_state.cognito.outputs.cognito_user_pool_client_id,
+      data.terraform_remote_state.cognito.outputs.checkin_app_client_id
+    ]
+    issuer = "https://cognito-idp.${var.aws_region}.amazonaws.com/${data.terraform_remote_state.cognito.outputs.cognito_user_pool_id}"
   }
 }
 
@@ -91,31 +94,33 @@ resource "aws_apigatewayv2_integration" "check_in" {
   payload_format_version = "2.0"
 }
 
-# Route: POST /checkin (AUTH required)
+# Route: POST /checkins (AUTH required)
 resource "aws_apigatewayv2_route" "check_in" {
   api_id    = aws_apigatewayv2_api.checkins_api.id
-  route_key = "POST /checkin"
+  route_key = "POST /checkins"
   target    = "integrations/${aws_apigatewayv2_integration.check_in.id}"
 
   authorization_type = "JWT"
   authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
 
-# Integration: POST /checkin/scan (Zeffy QR)
-resource "aws_apigatewayv2_integration" "check_in_by_scan" {
+# Integration: POST /checkins/{id}/guests
+resource "aws_apigatewayv2_integration" "record_guests" {
   api_id                 = aws_apigatewayv2_api.checkins_api.id
   integration_type       = "AWS_PROXY"
-  integration_uri        = aws_lambda_function.check_in_by_scan.invoke_arn
+  integration_uri        = aws_lambda_function.record_guests.invoke_arn
   integration_method     = "POST"
   payload_format_version = "2.0"
 }
 
-# Route: POST /checkin/scan (AUTH required)
-resource "aws_apigatewayv2_route" "check_in_by_scan" {
+# Route: POST /checkins/{id}/guests (AUTH required)
+resource "aws_apigatewayv2_route" "record_guests" {
   api_id    = aws_apigatewayv2_api.checkins_api.id
-  route_key = "POST /checkin/scan"
-  target    = "integrations/${aws_apigatewayv2_integration.check_in_by_scan.id}"
+  route_key = "POST /checkins/{id}/guests"
+  target    = "integrations/${aws_apigatewayv2_integration.record_guests.id}"
 
   authorization_type = "JWT"
   authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
+
+

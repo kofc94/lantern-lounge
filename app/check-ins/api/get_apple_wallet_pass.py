@@ -6,6 +6,7 @@ import os
 import struct
 import zipfile
 import zlib
+from typing import Any, Dict
 
 import boto3
 from cryptography.hazmat.primitives.serialization import load_pem_private_key, Encoding
@@ -16,11 +17,22 @@ from cryptography.hazmat.primitives.serialization.pkcs7 import (
 from cryptography.hazmat.primitives import hashes
 from cryptography.x509 import load_pem_x509_certificate
 
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from mypy_boto3_ssm import SSMClient
+    from aws_lambda_typing.events import APIGatewayProxyEventV2
+    from aws_lambda_typing.context import Context
+else:
+    SSMClient = object
+    APIGatewayProxyEventV2 = object
+    Context = object
+
 from shared import get_user_from_context
+from domain import UserContext, APIResponse
 
-_ssm = boto3.client("ssm")
+_ssm: SSMClient = boto3.client("ssm")
 
-def _get_asset(filename):
+def _get_asset(filename: str) -> bytes:
     """Read a local asset file bundled with the Lambda."""
     path = os.path.join(os.path.dirname(__file__), filename)
     if not os.path.exists(path):
@@ -29,9 +41,9 @@ def _get_asset(filename):
         return f.read()
 
 
-def handler(event, context):
+def handler(event: APIGatewayProxyEventV2, context: Context) -> APIResponse:
     user = get_user_from_context(event)
-    if not user.get("sub"):
+    if not user.sub:
         return _error(401, "Unauthorized")
 
     try:
@@ -43,38 +55,42 @@ def handler(event, context):
         print(f"Apple Wallet error: {e}")
         return _error(500, "Could not generate pass")
 
-    return {
-        "statusCode": 200,
-        "headers": {
+    return APIResponse(
+        statusCode=200,
+        headers={
             "Content-Type": "application/vnd.apple.pkpass",
             "Content-Disposition": 'attachment; filename="lanternlounge.pkpass"',
             "Access-Control-Allow-Origin": "*",
         },
-        "body": base64.b64encode(pkpass_bytes).decode(),
-        "isBase64Encoded": True,
-    }
+        body=base64.b64encode(pkpass_bytes).decode(),
+        isBase64Encoded=True,
+    )
 
 
-def _error(status, message):
-    return {
-        "statusCode": status,
-        "headers": {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"},
-        "body": json.dumps({"error": message}),
-    }
+def _error(status: int, message: str) -> APIResponse:
+    return APIResponse(
+        statusCode=status,
+        headers={"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"},
+        body=json.dumps({"error": message}),
+    )
 
 
 class _ConfigMissing(Exception):
     pass
 
 
-def _ssm_get(name, decrypt=False):
+def _ssm_get(name: str, decrypt: bool = False) -> str:
     try:
-        return _ssm.get_parameter(Name=name, WithDecryption=decrypt)["Parameter"]["Value"]
-    except _ssm.exceptions.ParameterNotFound:
+        resp = _ssm.get_parameter(Name=name, WithDecryption=decrypt)
+        val = resp.get("Parameter", {}).get("Value")
+        if val is None:
+            raise _ConfigMissing(f"Missing SSM parameter: {name}")
+        return val
+    except Exception:
         raise _ConfigMissing(f"Missing SSM parameter: {name}")
 
 
-def _build_pkpass(user):
+def _build_pkpass(user: UserContext) -> bytes:
     pass_type_id    = _ssm_get("/lantern-lounge/apple/wallet-pass-type-id")
     team_id         = _ssm_get("/lantern-lounge/apple/wallet-team-id")
     private_key_pem = _ssm_get("/lantern-lounge/apple/wallet-private-key",      decrypt=True)
@@ -85,9 +101,9 @@ def _build_pkpass(user):
     cert        = load_pem_x509_certificate(cert_pem.encode())
     wwdr_cert   = load_pem_x509_certificate(wwdr_pem.encode())
 
-    display_name = user.get("name") or user.get("email", "Member")
-    email  = user.get("email", user["sub"])
-    serial = user["sub"].replace("-", "")[:20]
+    display_name = user.name or user.email or "Member"
+    email  = user.email or user.sub
+    serial = user.sub.replace("-", "")[:20]
 
     # Branding Colors
     bg_color     = "rgb(28, 25, 23)"    # Rich Dark
@@ -127,10 +143,14 @@ def _build_pkpass(user):
         }],
     }, separators=(",", ":")).encode()
 
-    files = { "pass.json":    pass_json }
+    files: Dict[str, bytes] = { "pass.json": pass_json }
     for res in ["icon{}.png", "logo{}.png", "strip{}.png"]:
         for scale in ["", "@2x", "@3x"]:
-            files[res.format(scale)] = _get_asset(f"assets/{res.format(scale)}")
+            try:
+                filename = res.format(scale)
+                files[filename] = _get_asset(f"assets/{filename}")
+            except FileNotFoundError:
+                pass # Missing assets are acceptable if not all scales are provided
     
 
     # manifest.json — SHA1 hash of every file in the bundle
@@ -141,9 +161,9 @@ def _build_pkpass(user):
     signature = (
         PKCS7SignatureBuilder()
         .set_data(manifest_json)
-        .add_signer(cert, private_key, hashes.SHA256())
+        .add_signer(cert, private_key, hashes.SHA256()) # type: ignore
         .add_certificate(wwdr_cert)
-        .sign(Encoding.DER, [PKCS7Options.DetachedSignature, PKCS7Options.Binary])
+        .sign(Encoding.DER, [PKCS7Options.DetachedSignature, PKCS7Options.Binary])  # type: ignore[arg-type,list-item]
     )
 
     # Pack everything into a .pkpass ZIP
@@ -154,4 +174,3 @@ def _build_pkpass(user):
         zf.writestr("manifest.json", manifest_json)
         zf.writestr("signature", signature)
     return buf.getvalue()
-

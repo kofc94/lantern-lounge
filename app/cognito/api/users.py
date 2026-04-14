@@ -2,13 +2,18 @@ import json
 import os
 import boto3
 from typing import Any, Dict, List, Set
-from shared import LambdaEvent, LambdaContext, LambdaResponse, get_user_info, create_response
+from pydantic import ValidationError
+from shared import (
+    APIGatewayProxyEventV2, Context, APIResponse, 
+    get_user_info, create_response,
+    UserDto, UsersResponseDto, UpdateUserRoleRequest
+)
 
 cognito = boto3.client('cognito-idp')
 USER_POOL_ID = os.environ.get('USER_POOL_ID')
 
 
-def handler(event: LambdaEvent, context: LambdaContext) -> LambdaResponse:
+def handler(event: APIGatewayProxyEventV2, context: Context) -> APIResponse:
     """
     GET  /users               – List users with their roles (admin only)
     PATCH /users/{username}   – Update a user's role (admin only)
@@ -18,7 +23,9 @@ def handler(event: LambdaEvent, context: LambdaContext) -> LambdaResponse:
     if not user.is_authenticated or not user.is_admin:
         return create_response(403, {'error': 'Forbidden', 'message': 'Admin privileges required'})
 
-    method = event.get('requestContext', {}).get('http', {}).get('method', 'GET')
+    request_context = event.get('requestContext', {})
+    http_context = request_context.get('http', {})
+    method = http_context.get('method', 'GET')
 
     try:
         if method == 'GET':
@@ -47,7 +54,7 @@ def _get_group_members(group_name: str) -> Set[str]:
     return usernames
 
 
-def list_users(event: LambdaEvent) -> LambdaResponse:
+def list_users(event: APIGatewayProxyEventV2) -> APIResponse:
     """List users with pagination. Derives each user's role from group membership."""
     query_params = event.get('queryStringParameters') or {}
     pagination_token = query_params.get('paginationToken')
@@ -62,7 +69,7 @@ def list_users(event: LambdaEvent) -> LambdaResponse:
 
     response = cognito.list_users(**kwargs)
 
-    users: List[Dict[str, Any]] = []
+    user_dtos: List[UserDto] = []
     for u in response.get('Users', []):
         attrs = {a['Name']: a['Value'] for a in u.get('Attributes', [])}
         username = u['Username']
@@ -74,20 +81,24 @@ def list_users(event: LambdaEvent) -> LambdaResponse:
         else:
             profile = 'limited'
 
-        users.append({
-            'username': username,
-            'email': attrs.get('email'),
-            'name': attrs.get('name'),
-            'profile': profile,
-        })
+        user_dtos.append(UserDto(
+            username=username,
+            email=attrs.get('email'),
+            name=attrs.get('name'),
+            profile=profile,
+            created_at=u['UserCreateDate'],
+            updated_at=u['UserLastModifiedDate'],
+        ))
 
-    return create_response(200, {
-        'users': users,
-        'paginationToken': response.get('PaginationToken'),
-    })
+    response_dto = UsersResponseDto(
+        users=user_dtos,
+        pagination_token=response.get('PaginationToken')
+    )
+
+    return create_response(200, response_dto.model_dump(by_alias=True))
 
 
-def update_user_role(event: LambdaEvent) -> LambdaResponse:
+def update_user_role(event: APIGatewayProxyEventV2) -> APIResponse:
     """Update a user's role by modifying their Cognito group memberships."""
     path_params = event.get('pathParameters') or {}
     target_username = path_params.get('username')
@@ -95,12 +106,13 @@ def update_user_role(event: LambdaEvent) -> LambdaResponse:
     if not target_username:
         return create_response(400, {'error': 'Bad request', 'message': 'Username is required in path'})
 
+    body_str = event.get('body') or '{}'
     try:
-        body = json.loads(event.get('body') or '{}')
-    except json.JSONDecodeError:
-        return create_response(400, {'error': 'Bad request', 'message': 'Invalid JSON'})
+        request_data = UpdateUserRoleRequest.model_validate_json(body_str)
+    except ValidationError as ve:
+        return create_response(400, {'error': 'Bad request', 'message': f'Validation failed: {ve.errors()}'})
 
-    new_role = body.get('profile')
+    new_role = request_data.profile
     if new_role not in ('admin', 'member', 'limited'):
         return create_response(400, {'error': 'Bad request', 'message': "profile must be one of: admin, member, limited"})
 

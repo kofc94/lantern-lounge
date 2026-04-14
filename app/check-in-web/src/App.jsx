@@ -1,10 +1,52 @@
+import { useEffect } from 'react';
 import { AuthProvider } from './contexts/AuthContext';
 import useAuth from './hooks/useAuth';
 import Layout from './components/layout/Layout';
 import CheckIn from './pages/CheckIn';
+import { SplashScreen } from '@capacitor/splash-screen';
+import { StatusBar, Style } from '@capacitor/status-bar';
+import { App as CapApp } from '@capacitor/app';
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, isStaff, loading } = useAuth();
+
+  useEffect(() => {
+    // Handle deep links for OAuth redirects on native mobile
+    const setupDeepLinks = async () => {
+      CapApp.addListener('appUrlOpen', (data) => {
+        // When the app is opened via a custom URL scheme (e.g. after OAuth)
+        // we don't need to do much manually as Amplify logic usually catches 
+        // the URL changes if configured correctly, but this ensures the 
+        // app state is aware of the opening URL.
+        console.log('App opened with URL:', data.url);
+      });
+    };
+    setupDeepLinks();
+    
+    return () => {
+      CapApp.removeAllListeners();
+    };
+  }, []);
+
+  useEffect(() => {
+    // Hide splash screen when auth check is finished
+    if (!loading) {
+      SplashScreen.hide().catch(() => { /* Ignore if not native */ });
+    }
+  }, [loading]);
+
+  useEffect(() => {
+    // Style status bar for native mobile
+    const styleStatusBar = async () => {
+      try {
+        await StatusBar.setStyle({ style: Style.Dark });
+        await StatusBar.setBackgroundColor({ color: '#1C1917' }); // Match bg-dark
+      } catch {
+        // Ignore if not native
+      }
+    };
+    styleStatusBar();
+  }, []);
 
   if (loading) {
     return (

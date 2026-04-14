@@ -1,74 +1,82 @@
 import json
 import boto3
-import uuid
+from ulid import ULID
 from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from mypy_boto3_dynamodb.service_resource import DynamoDBServiceResource
+    from aws_lambda_typing.events import APIGatewayProxyEventV2
+    from aws_lambda_typing.context import Context
+else:
+    DynamoDBServiceResource = object
+    APIGatewayProxyEventV2 = object
+    Context = object
+
+from pydantic import ValidationError
 from shared import (
     get_response, get_user_from_context, get_config,
     get_user_info_by_email, record_non_member_visit,
+    handle_exception, now_utc
 )
+from domain import GuestResultDto, APIResponse, ManualCheckInRequest, CheckInResponseDto
 
-dynamodb = boto3.resource("dynamodb")
+dynamodb: DynamoDBServiceResource = boto3.resource("dynamodb")
 
-NON_MEMBER_VISIT_THRESHOLD = 3
-
-
-def handler(event, context):
-    config = get_config()
-    table = dynamodb.Table(config["checkins_table"])
-    non_members_table = dynamodb.Table(config["non_members_table"])
-    cognito_api_endpoint = config["cognito_api_endpoint"]
-
-    staff_user = get_user_from_context(event)
-    if "admin" not in staff_user.get("groups", []) and "staff" not in staff_user.get("groups", []):
-        return get_response(403, {"error": "Forbidden: Staff access required"})
-
+def handler(event: APIGatewayProxyEventV2, context: Context) -> APIResponse:
     try:
-        body = json.loads(event.get("body", "{}"))
-        email = body.get("email")
-        guests = body.get("guests", [])
+        config = get_config()
+        table = dynamodb.Table(config.checkins_table)
+        cognito_api_endpoint = config.cognito_api_endpoint
 
-        if not email:
-            return get_response(400, {"error": "Missing email"})
+        staff_user = get_user_from_context(event)
+        
+        body_str = event.get("body", "{}")
+        try:
+            request_data = ManualCheckInRequest.model_validate_json(body_str)
+        except ValidationError as ve:
+            return get_response(400, {"error": f"Invalid request body: {ve.errors()}"})
 
-        user_info = get_user_info_by_email(email, cognito_api_endpoint)
-        if not user_info:
-            return get_response(404, {"error": "Member not found with that email address"})
+        target_email = request_data.email
+        
+        if target_email:
+            # Explicit email provided: Staff checking in a member
+            if "admin" not in staff_user.groups and "staff" not in staff_user.groups:
+                return get_response(403, {"error": "Forbidden: Staff access required to check in others"})
+            
+            user_info = get_user_info_by_email(target_email, cognito_api_endpoint)
+            if not user_info:
+                return get_response(404, {"error": "Member not found with that email address"})
+            
+            user_id = user_info.sub
+            user_name = user_info.name
+        else:
+            # No email provided: User checking in themselves
+            user_id = staff_user.sub
+            user_name = staff_user.name or staff_user.email or "Member"
 
-        user_id = user_info.get("sub")
-        user_name = user_info.get("name")
-        timestamp = datetime.utcnow().isoformat()
+        now = now_utc()
+        checkin_id = str(ULID())
+        ts_str = now.strftime('%Y-%m-%dT%H:%M:%SZ')
 
         table.put_item(Item={
-            "id": str(uuid.uuid4()),
-            "timestamp": timestamp,
+            "id": checkin_id,
+            "timestamp": ts_str,
+            "created_at": ts_str, # Keep created_at for legacy/UI compatibility if needed
             "user_id": user_id,
-            "staff_id": staff_user["sub"],
+            "staff_id": staff_user.sub,
             "method": "manual",
         })
 
-        guest_results = []
-        for guest in guests:
-            guest_name = (guest.get("name") or "").strip()
-            guest_email = (guest.get("email") or "").strip().lower()
-            if not guest_name or not guest_email:
-                continue
-            visit_count = record_non_member_visit(non_members_table, guest_name, guest_email, staff_user["sub"], timestamp)
-            guest_results.append({
-                "name": guest_name,
-                "email": guest_email,
-                "visit_count": visit_count,
-                "should_become_member": visit_count > NON_MEMBER_VISIT_THRESHOLD,
-            })
+        response_dto = CheckInResponseDto(
+            id=checkin_id,
+            user_id=user_id,
+            user_name=user_name or "Unknown",
+            created_at=now,
+        )
 
-        return get_response(200, {
-            "message": "Check-in successful",
-            "user_id": user_id,
-            "user_name": user_name,
-            "timestamp": timestamp,
-            "method": "manual",
-            "guests": guest_results,
-        })
+        return get_response(200, response_dto.model_dump(exclude_none=True, by_alias=True))
 
     except Exception as e:
-        print(f"Error: {str(e)}")
-        return get_response(500, {"error": "Internal server error"})
+        return handle_exception(e)
