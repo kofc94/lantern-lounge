@@ -29,18 +29,34 @@ provider "aws" {
   }
 }
 
+# The DNS provider manages the Route53 Hosted Zone in the management account
+provider "aws" {
+  alias  = "dns"
+  region = var.aws_region
+}
+
+data "terraform_remote_state" "global" {
+  backend = "s3"
+  config = {
+    bucket = "lanternlounge-tfstate"
+    key    = "infrastructure/aws/global/terraform.tfstate"
+    region = "us-east-1"
+  }
+}
+
 module "website" {
   source = "../base/website"
 
   environment         = "development"
   project_name        = var.project_name
   domain_name         = "dev.lanternlounge.org"
+  route53_zone_id     = data.terraform_remote_state.global.outputs.route53_zone_id
   www_domain_name     = "www.dev.lanternlounge.org"
   checkin_domain_name = "checkin.dev.lanternlounge.org"
-  api_gateway_domain  = var.api_gateway_domain
 
   providers = {
     aws           = aws
     aws.us_east_1 = aws.us_east_1
+    aws.dns       = aws.dns
   }
 }

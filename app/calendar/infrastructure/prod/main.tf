@@ -9,16 +9,7 @@ terraform {
 
   backend "s3" {
     bucket = "lanternlounge-tfstate"
-    key    = "app/terraform.tfstate"
-    region = "us-east-1"
-  }
-}
-
-data "terraform_remote_state" "cognito" {
-  backend = "s3"
-  config = {
-    bucket = "lanternlounge-tfstate"
-    key    = "authentication/terraform.tfstate"
+    key    = "app/calendar/prod/terraform.tfstate"
     region = "us-east-1"
   }
 }
@@ -27,7 +18,11 @@ provider "aws" {
   region = var.aws_region
 }
 
-locals {
+module "calendar" {
+  source = "../../"
+
+  environment     = "prod"
+  project_name    = var.project_name
   domain_name     = "lanternlounge.org"
   www_domain_name = "www.lanternlounge.org"
 }

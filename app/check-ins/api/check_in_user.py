@@ -58,10 +58,12 @@ def handler(event: APIGatewayProxyEventV2, context: Context) -> APIResponse:
 
         now = now_utc()
         checkin_id = str(ULID())
+        ts_str = now.strftime('%Y-%m-%dT%H:%M:%SZ')
 
         table.put_item(Item={
             "id": checkin_id,
-            "created_at": now.strftime('%Y-%m-%dT%H:%M:%SZ'),
+            "timestamp": ts_str,
+            "created_at": ts_str, # Keep created_at for legacy/UI compatibility if needed
             "user_id": user_id,
             "staff_id": staff_user.sub,
             "method": "manual",

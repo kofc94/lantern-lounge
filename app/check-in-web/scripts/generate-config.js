@@ -35,9 +35,8 @@ console.log('Reading OpenTofu outputs...');
 
 const apiEndpoint        = tfOutput('app/calendar',  'api_gateway_endpoint');
 const checkinsApiEndpoint = tfOutput('app/check-ins', 'api_gateway_endpoint');
-const usersApiEndpoint   = tfOutput('app/cognito',   'users_api_endpoint');
 const userPoolId         = tfOutput('app/cognito',   'cognito_user_pool_id');
-const appClientId        = tfOutput('app/cognito',   'cognito_user_pool_client_id');
+const checkinAppClientId = tfOutput('app/cognito',   'checkin_app_client_id');
 const cognitoDomain      = tfOutput('app/cognito',   'cognito_domain');
 
 const content = `// AWS Cognito and API Configuration
@@ -47,13 +46,12 @@ const CONFIG = {
   // API Gateway endpoints
   apiEndpoint: import.meta.env.VITE_API_ENDPOINT ?? '${apiEndpoint}',
   checkinsApiEndpoint: import.meta.env.VITE_CHECKINS_API_ENDPOINT ?? '${checkinsApiEndpoint}',
-  usersApiEndpoint: import.meta.env.VITE_USERS_API_ENDPOINT ?? '${usersApiEndpoint}',
 
   // Cognito User Pool Configuration
   cognito: {
     userPoolId: '${userPoolId}',
     userPoolRegion: 'us-east-1',
-    appClientId: '${appClientId}',
+    appClientId: import.meta.env.VITE_COGNITO_CLIENT_ID ?? '${checkinAppClientId}',
     domain: '${cognitoDomain}.auth.us-east-1.amazoncognito.com'
   },
 
@@ -64,9 +62,8 @@ const CONFIG = {
     updateItem: '/calendar/items',
     deleteItem: '/calendar/items',
     getPass: '/wallet/pass',
-    getApplePass: '/wallet/apple',
-    checkIn: '/checkin',
-    checkInScan: '/checkin/scan'
+    checkIn: '/checkins',
+    recordGuests: '/checkins/:id/guests'
   }
 };
 

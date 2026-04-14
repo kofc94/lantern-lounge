@@ -1,6 +1,7 @@
 .PHONY: install dev build preview lint test deploy clean
 
-INFRA_DIR := ../../infrastructure/aws
+ENV ?= prod
+INFRA_DIR := ../../infrastructure/aws/$(ENV)
 
 # Get infrastructure outputs
 BUCKET_NAME = $(shell cd $(INFRA_DIR) && tofu output -raw website_bucket_name 2>/dev/null)
@@ -9,10 +10,13 @@ DISTRIBUTION_ID = $(shell cd $(INFRA_DIR) && tofu output -raw checkin_cloudfront
 install:
 	npm install
 
+generate-config:
+	node scripts/generate-config.js $(ENV)
+
 dev:
 	npm run dev
 
-build:
+build: generate-config
 	npm install
 	npm run build
 
@@ -38,7 +42,7 @@ android: build
 sync:
 	npx cap sync
 
-deploy: build
+deploy: test build
 	@if [ -z "$(BUCKET_NAME)" ] || [ -z "$(DISTRIBUTION_ID)" ]; then \
 		echo "❌ Error: Could not get bucket name or distribution ID from OpenTofu"; \
 		echo "   Make sure infrastructure is deployed in $(INFRA_DIR)"; \

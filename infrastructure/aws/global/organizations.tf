@@ -10,9 +10,9 @@ resource "aws_organizations_organization" "main" {
 }
 
 # Lantern Lounge Production account
-resource "aws_organizations_account" "prod" {
-  name  = "Lantern Lounge Prod"
-  email = "aws+prod@lanternlounge.org"
+resource "aws_organizations_account" "lantern_lounge" {
+  name  = "Lantern Lounge"
+  email = "aws@lanternlounge.org"
 
   # Default role created by Organizations in the member account
   role_name = "OrganizationAccountAccessRole"
@@ -31,24 +31,24 @@ resource "aws_organizations_account" "prod" {
   }
 }
 
-# Lantern Lounge Development account
-resource "aws_organizations_account" "dev" {
-  name  = "Lantern Lounge Dev"
-  email = "aws+dev@lanternlounge.org"
-
-  # Default role created by Organizations in the member account
-  role_name = "OrganizationAccountAccessRole"
-
-  # Prevent accidental deletion of the member account
-  close_on_deletion = false
-
-  lifecycle {
-    # AWS does not allow changing role_name after creation
-    ignore_changes = [role_name]
-  }
-
-  tags = {
-    Environment = "development"
-    Project     = var.project_name
-  }
-}
+# Lantern Lounge Development account (currently suspended in AWS)
+# resource "aws_organizations_account" "dev" {
+#   name  = "Lantern Lounge Dev"
+#   email = "eledonne+dev@gmail.com"
+#
+#   # Default role created by Organizations in the member account
+#   role_name = "OrganizationAccountAccessRole"
+#
+#   # Prevent accidental deletion of the member account
+#   close_on_deletion = false
+#
+#   lifecycle {
+#     # AWS does not allow changing role_name after creation
+#     ignore_changes = [role_name]
+#   }
+#
+#   tags = {
+#     Environment = "development"
+#     Project     = var.project_name
+#   }
+# }

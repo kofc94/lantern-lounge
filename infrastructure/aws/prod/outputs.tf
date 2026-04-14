@@ -1,39 +1,39 @@
 output "website_bucket_name" {
   description = "Name of the S3 bucket for website hosting"
-  value       = aws_s3_bucket.website.bucket
+  value       = module.website.website_bucket_name
 }
 
 output "cloudfront_distribution_id" {
   description = "CloudFront distribution ID for the website"
-  value       = aws_cloudfront_distribution.website_distribution.id
+  value       = module.website.cloudfront_distribution_id
 }
 
 output "checkin_cloudfront_distribution_id" {
   description = "CloudFront distribution ID for the check-in webapp"
-  value       = aws_cloudfront_distribution.checkin_distribution.id
+  value       = module.website.checkin_cloudfront_distribution_id
 }
 
 output "api_gateway_id" {
   description = "ID of the main API Gateway"
-  value       = aws_apigatewayv2_api.main.id
+  value       = module.website.api_gateway_id
 }
 
 output "api_gateway_endpoint" {
   description = "Endpoint URL of the main API Gateway"
-  value       = aws_apigatewayv2_api.main.api_endpoint
+  value       = module.website.api_gateway_endpoint
 }
 
 output "api_gateway_execution_arn" {
   description = "Execution ARN of the main API Gateway"
-  value       = aws_apigatewayv2_api.main.execution_arn
+  value       = module.website.api_gateway_execution_arn
 }
 
 output "route53_zone_id" {
   description = "Route53 hosted zone ID"
-  value       = var.route53_zone_id
+  value       = module.website.route53_zone_id
 }
 
 output "website_url" {
   description = "Website URL"
-  value       = "https://${var.www_domain_name}"
+  value       = module.website.website_url
 }

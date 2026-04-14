@@ -52,8 +52,8 @@ resource "aws_apigatewayv2_api" "users_api" {
 
   cors_configuration {
     allow_origins = [
-      "https://${local.www_domain_name}",
-      "https://${local.domain_name}",
+      "https://${var.www_domain_name}",
+      "https://${var.domain_name}",
       "http://localhost:5173",
     ]
     allow_methods = ["GET", "PATCH", "OPTIONS"]

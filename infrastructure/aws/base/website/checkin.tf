@@ -1,11 +1,7 @@
-locals {
-  checkin_domain_name = "checkin.lanternlounge.org"
-}
-
 # Separate ACM certificate for the checkin subdomain (us-east-1 required for CloudFront)
 resource "aws_acm_certificate" "checkin_certificate" {
   provider          = aws.us_east_1
-  domain_name       = local.checkin_domain_name
+  domain_name       = var.checkin_domain_name
   validation_method = "DNS"
 
   lifecycle {
@@ -14,6 +10,7 @@ resource "aws_acm_certificate" "checkin_certificate" {
 }
 
 resource "aws_route53_record" "checkin_ssl_validation" {
+  provider = aws.dns
   for_each = {
     for dvo in aws_acm_certificate.checkin_certificate.domain_validation_options : dvo.domain_name => {
       name   = dvo.resource_record_name
@@ -27,7 +24,7 @@ resource "aws_route53_record" "checkin_ssl_validation" {
   records         = [each.value.record]
   ttl             = 60
   type            = each.value.type
-  zone_id         = data.aws_route53_zone.main.zone_id
+  zone_id         = var.route53_zone_id
 }
 
 resource "aws_acm_certificate_validation" "checkin_ssl_validation" {
@@ -40,11 +37,11 @@ resource "aws_acm_certificate_validation" "checkin_ssl_validation" {
   }
 }
 
-# CloudFront distribution for checkin.lanternlounge.org
+# CloudFront distribution for checkin subdomain
 # Serves from the /checkin prefix of the main website S3 bucket
 resource "aws_cloudfront_distribution" "checkin_distribution" {
   origin {
-    domain_name = aws_s3_bucket_website_configuration.website.website_endpoint
+    domain_name = "www.lanternlounge.org.s3-website-us-east-1.amazonaws.com"
     origin_id   = "S3-checkin"
     origin_path = "/checkin"
 
@@ -52,6 +49,7 @@ resource "aws_cloudfront_distribution" "checkin_distribution" {
       http_port              = 80
       https_port             = 443
       origin_protocol_policy = "http-only"
+      origin_read_timeout    = 30
       origin_ssl_protocols   = ["TLSv1.2"]
     }
   }
@@ -59,7 +57,7 @@ resource "aws_cloudfront_distribution" "checkin_distribution" {
   enabled             = true
   is_ipv6_enabled     = true
   default_root_object = "index.html"
-  aliases             = [local.checkin_domain_name]
+  aliases             = [var.checkin_domain_name]
 
   default_cache_behavior {
     allowed_methods        = ["GET", "HEAD", "OPTIONS"]
@@ -109,15 +107,16 @@ resource "aws_cloudfront_distribution" "checkin_distribution" {
 
   tags = {
     Name        = "Lantern Lounge Check-in Web"
-    Environment = "production"
+    Environment = var.environment
   }
 }
 
 # Route53 records for checkin subdomain
 resource "aws_route53_record" "checkin" {
-  zone_id = data.aws_route53_zone.main.zone_id
-  name    = local.checkin_domain_name
-  type    = "A"
+  provider = aws.dns
+  zone_id  = var.route53_zone_id
+  name     = var.checkin_domain_name
+  type     = "A"
 
   alias {
     name                   = aws_cloudfront_distribution.checkin_distribution.domain_name
@@ -127,9 +126,10 @@ resource "aws_route53_record" "checkin" {
 }
 
 resource "aws_route53_record" "checkin_ipv6" {
-  zone_id = data.aws_route53_zone.main.zone_id
-  name    = local.checkin_domain_name
-  type    = "AAAA"
+  provider = aws.dns
+  zone_id  = var.route53_zone_id
+  name     = var.checkin_domain_name
+  type     = "AAAA"
 
   alias {
     name                   = aws_cloudfront_distribution.checkin_distribution.domain_name

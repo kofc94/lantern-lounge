@@ -181,7 +181,7 @@ resource "aws_lambda_permission" "api_gateway_get" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.get_calendar_items.function_name
   principal     = "apigateway.amazonaws.com"
-  source_arn    = "${aws_apigatewayv2_api.calendar_api.execution_arn}/*/*"
+  source_arn    = "${data.terraform_remote_state.infrastructure.outputs.api_gateway_execution_arn}/*/*"
 }
 
 resource "aws_lambda_permission" "api_gateway_create" {
@@ -189,7 +189,7 @@ resource "aws_lambda_permission" "api_gateway_create" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.create_calendar_item.function_name
   principal     = "apigateway.amazonaws.com"
-  source_arn    = "${aws_apigatewayv2_api.calendar_api.execution_arn}/*/*"
+  source_arn    = "${data.terraform_remote_state.infrastructure.outputs.api_gateway_execution_arn}/*/*"
 }
 
 resource "aws_lambda_permission" "api_gateway_update" {
@@ -197,7 +197,7 @@ resource "aws_lambda_permission" "api_gateway_update" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.update_calendar_item.function_name
   principal     = "apigateway.amazonaws.com"
-  source_arn    = "${aws_apigatewayv2_api.calendar_api.execution_arn}/*/*"
+  source_arn    = "${data.terraform_remote_state.infrastructure.outputs.api_gateway_execution_arn}/*/*"
 }
 
 resource "aws_lambda_permission" "api_gateway_delete" {
@@ -205,5 +205,5 @@ resource "aws_lambda_permission" "api_gateway_delete" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.delete_calendar_item.function_name
   principal     = "apigateway.amazonaws.com"
-  source_arn    = "${aws_apigatewayv2_api.calendar_api.execution_arn}/*/*"
+  source_arn    = "${data.terraform_remote_state.infrastructure.outputs.api_gateway_execution_arn}/*/*"
 }

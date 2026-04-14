@@ -102,16 +102,16 @@ resource "aws_cognito_user_pool_client" "calendar_app" {
 
   # Callback URLs
   callback_urls = [
-    "https://${local.www_domain_name}/",
-    "https://${local.domain_name}/",
+    "https://${var.www_domain_name}/",
+    "https://${var.domain_name}/",
     "https://checkin.lanternlounge.org/",
     "http://localhost:5173/"
   ]
 
   # Logout URLs
   logout_urls = [
-    "https://${local.www_domain_name}/",
-    "https://${local.domain_name}/",
+    "https://${var.www_domain_name}/",
+    "https://${var.domain_name}/",
     "https://checkin.lanternlounge.org/",
     "http://localhost:5173/"
   ]
@@ -147,7 +147,7 @@ resource "aws_cognito_user_pool_client" "calendar_app" {
 
 # Optional: Cognito User Pool Domain (for hosted UI)
 resource "aws_cognito_user_pool_domain" "calendar_domain" {
-  domain       = "${var.project_name}-calendar-${var.environment}"
+  domain       = "${var.project_name}-calendar-${var.environment == "prod" ? "production" : var.environment}"
   user_pool_id = aws_cognito_user_pool.calendar_users.id
 }
 

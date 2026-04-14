@@ -9,7 +9,7 @@ terraform {
 
   backend "s3" {
     bucket = "lanternlounge-tfstate"
-    key    = "check-ins/terraform.tfstate"
+    key    = "app/check-ins/dev/terraform.tfstate"
     region = "us-east-1"
   }
 }
@@ -18,18 +18,10 @@ provider "aws" {
   region = var.aws_region
 }
 
-# Data source for Cognito outputs (from the cognito workspace)
-data "terraform_remote_state" "cognito" {
-  backend = "s3"
-  config = {
-    bucket = "lanternlounge-tfstate"
-    key    = "authentication/terraform.tfstate"
-    region = "us-east-1"
-  }
-}
+module "checkins" {
+  source = "../../"
 
-locals {
-  domain_name     = "lanternlounge.org"
-  www_domain_name = "www.lanternlounge.org"
+  environment  = "dev"
+  project_name = var.project_name
+  domain_name  = "dev.lanternlounge.org"
 }
-

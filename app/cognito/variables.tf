@@ -5,7 +5,7 @@ variable "aws_region" {
 }
 
 variable "environment" {
-  description = "Environment name (e.g., development, production)"
+  description = "Environment name (e.g., dev, prod)"
   type        = string
 }
 
@@ -16,21 +16,11 @@ variable "project_name" {
 }
 
 variable "domain_name" {
-  description = "Root domain name for the website"
-  type        = string
-}
-
-variable "route53_zone_id" {
-  description = "The ID of the Route53 Hosted Zone"
+  description = "Root domain name"
   type        = string
 }
 
 variable "www_domain_name" {
-  description = "WWW subdomain for the website"
-  type        = string
-}
-
-variable "checkin_domain_name" {
-  description = "Subdomain for the check-in web application"
+  description = "WWW subdomain name"
   type        = string
 }

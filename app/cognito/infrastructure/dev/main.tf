@@ -5,15 +5,15 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
-    archive = {
-      source  = "hashicorp/archive"
-      version = "~> 2.0"
+    google = {
+      source  = "hashicorp/google"
+      version = "~> 5.0"
     }
   }
 
   backend "s3" {
     bucket = "lanternlounge-tfstate"
-    key    = "authentication/terraform.tfstate"
+    key    = "app/cognito/dev/terraform.tfstate"
     region = "us-east-1"
   }
 }
@@ -22,7 +22,16 @@ provider "aws" {
   region = var.aws_region
 }
 
-locals {
-  domain_name     = "lanternlounge.org"
-  www_domain_name = "www.lanternlounge.org"
+provider "google" {
+  project = "lantern-lounge"
+  region  = "us-central1"
+}
+
+module "cognito" {
+  source = "../../"
+
+  environment     = "dev"
+  project_name    = var.project_name
+  domain_name     = "dev.lanternlounge.org"
+  www_domain_name = "www.dev.lanternlounge.org"
 }
